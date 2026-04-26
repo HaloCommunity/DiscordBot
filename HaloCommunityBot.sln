@@ -2,7 +2,7 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36202.13
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordBot", "src\PandaBot\PandaBot.csproj", "{6FC6A408-97C0-0BD4-535E-646DEB152719}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HaloCommunityBot", "src\HaloCommunityBot\HaloCommunityBot.csproj", "{6FC6A408-97C0-0BD4-535E-646DEB152719}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

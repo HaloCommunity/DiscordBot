@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>PandaBot</RootNamespace>
-    <AssemblyName>PandaBot</AssemblyName>
+    <RootNamespace>HaloCommunityBot</RootNamespace>
+    <AssemblyName>HaloCommunityBot</AssemblyName>
     <OutputType>Exe</OutputType>
     <UserSecretsId>ca866cec-4adc-4fb2-b01f-ffc1982d3939</UserSecretsId>
   </PropertyGroup>
@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Http" />
-    <PackageReference Include="supabase-csharp" />
   </ItemGroup>
 
 

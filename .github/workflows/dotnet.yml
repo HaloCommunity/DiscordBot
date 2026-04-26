@@ -1,45 +1,29 @@
-name: .NET CI/CD
+name: .NET CI
 
 on:
   push:
-    branches: [ "master" ]   # run when pushing to master branch
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]   # run when there's a PR to master branch
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Get code from repo
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # Install .NET SDK (example .NET 9, change version according to your project)
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      # Restore packages
       - name: Restore dependencies
-        run: dotnet restore src/DiscordBot
+        run: dotnet restore src/HaloCommunityBot/HaloCommunityBot.csproj
 
-      # Build project
       - name: Build
-        run: dotnet build src/DiscordBot --configuration Release --no-restore
+        run: dotnet build src/HaloCommunityBot/HaloCommunityBot.csproj --configuration Release --no-restore
 
-      # Run tests (if there's a separate test project)
       # - name: Test
-      #   run: dotnet test tests/DiscordBot.Tests --no-build --verbosity normal
-
-      # Publish to artifacts directory
-      - name: Publish
-        run: dotnet publish src/DiscordBot -c Release -o artifacts/DiscordBot
-
-      # Upload artifact to download from GitHub Actions
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: DiscordBot
-          path: artifacts/DiscordBot
+      #   run: dotnet test tests/HaloCommunityBot.Tests --no-build --verbosity normal
