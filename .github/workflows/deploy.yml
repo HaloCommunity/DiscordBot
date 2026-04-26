@@ -46,11 +46,16 @@ jobs:
         echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Preflight host permissions
+      run: |
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          "sudo -n true && sudo -n mkdir -p ${{ env.DEPLOY_PATH }} && sudo -n chown -R ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }}"
     
     - name: Stop bot service
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo systemctl stop halocommunitybot.service || true"
+          "sudo -n systemctl stop halocommunitybot.service || true"
     
     - name: Deploy files
       run: |
@@ -60,28 +65,29 @@ jobs:
     - name: Write .env file from secrets
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "cat > ${{ env.DEPLOY_PATH }}/.env << 'ENVEOF'
+          "sudo -n tee ${{ env.DEPLOY_PATH }}/.env > /dev/null << 'ENVEOF'
         HALOCOMMUNITYBOT_Bot__Token=${{ secrets.DISCORD_TOKEN }}
         HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=${{ secrets.STATUS_MONITOR_CHANNEL_ID }}
         HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=${{ secrets.STATUS_MONITOR_ROLE_ID }}
         ENVEOF
-        chmod 600 ${{ env.DEPLOY_PATH }}/.env"
+        sudo -n chown ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }}/.env
+        sudo -n chmod 600 ${{ env.DEPLOY_PATH }}/.env"
     
     - name: Set permissions
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo chown -R ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }} && \
+          "sudo -n chown -R ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }} && \
            chmod +x ${{ env.DEPLOY_PATH }}/HaloCommunityBot"
     
     - name: Start bot service
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo systemctl start halocommunitybot.service"
+          "sudo -n systemctl start halocommunitybot.service"
     
     - name: Check service status
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo systemctl status halocommunitybot.service --no-pager"
+          "sudo -n systemctl status halocommunitybot.service --no-pager"
     
     - name: Cleanup SSH key
       if: always()

@@ -67,6 +67,19 @@ sudo systemctl daemon-reload
 sudo systemctl enable halocommunitybot.service
 ```
 
+### 6. Allow Non-Interactive Deploy Commands
+
+The GitHub Actions deploy workflow runs `sudo` over SSH without a TTY/password prompt.
+Grant `deployer` passwordless access to only the commands needed by the workflow:
+
+```bash
+sudo tee /etc/sudoers.d/halocommunitybot-deploy > /dev/null << 'EOF'
+deployer ALL=(root) NOPASSWD: /bin/systemctl start halocommunitybot.service, /bin/systemctl stop halocommunitybot.service, /bin/systemctl status halocommunitybot.service, /bin/chown, /bin/chmod, /usr/bin/tee, /bin/mkdir
+EOF
+sudo chmod 440 /etc/sudoers.d/halocommunitybot-deploy
+sudo visudo -cf /etc/sudoers.d/halocommunitybot-deploy
+```
+
 ## Deployment Workflow
 
 The GitHub Actions workflow (`deploy.yml`) handles:
