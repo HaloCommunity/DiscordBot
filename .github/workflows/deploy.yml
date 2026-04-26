@@ -50,7 +50,7 @@ jobs:
     - name: Preflight host permissions
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo -n true && sudo -n mkdir -p ${{ env.DEPLOY_PATH }} && sudo -n chown -R ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }}"
+          "mkdir -p ${{ env.DEPLOY_PATH }} && test -w ${{ env.DEPLOY_PATH }}"
     
     - name: Stop bot service
       run: |
