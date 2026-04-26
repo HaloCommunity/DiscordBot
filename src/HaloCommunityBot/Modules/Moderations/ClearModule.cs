@@ -77,62 +77,61 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
                 return;
             }
 
-            // Filter deletable messages and track why messages are skipped.
-            var deletableMessages = new List<IMessage>();
+            // Partition messages into recent (bulk deletable) and old (single delete only).
+            var recentDeletableMessages = new List<IMessage>();
+            var oldDeletableMessages = new List<IMessage>();
             var now = DateTimeOffset.UtcNow;
-            int skippedOld = 0;
             int skippedType = 0;
 
             foreach (var message in messages)
             {
-                // A message is deletable only when it is under 14 days old and is a normal/reply message.
-                var isRecent = (now - message.Timestamp).TotalDays < 14;
                 var isSupportedType = message.Type == MessageType.Default || message.Type == MessageType.Reply;
+                var isRecent = (now - message.Timestamp).TotalDays < 14;
 
-                if (isRecent && isSupportedType)
-                {
-                    deletableMessages.Add(message);
-                }
-                else if (!isRecent)
-                {
-                    skippedOld++;
-                }
-                else
+                if (!isSupportedType)
                 {
                     skippedType++;
                 }
+                else if (isRecent)
+                {
+                    recentDeletableMessages.Add(message);
+                }
+                else
+                {
+                    oldDeletableMessages.Add(message);
+                }
             }
 
-            if (!deletableMessages.Any())
+            if (!recentDeletableMessages.Any() && !oldDeletableMessages.Any())
             {
                 await FollowupAsync(
                     $"❌ No messages could be deleted from the last {messages.Count()} checked.\n" +
-                    $"• Older than 14 days: {skippedOld}\n" +
                     $"• Unsupported/system message types: {skippedType}",
                     ephemeral: true);
                 return;
             }
 
-            int successfulDeletes = 0;
+            int recentDeletes = 0;
+            int oldDeletes = 0;
             int failedDeletes = 0;
 
-            // Delete each message safely
-            if (deletableMessages.Count == 1)
+            // Delete recent messages in bulk where possible.
+            if (recentDeletableMessages.Count == 1)
             {
                 try
                 {
-                    await deletableMessages[0].DeleteAsync();
-                    successfulDeletes = 1;
+                    await recentDeletableMessages[0].DeleteAsync();
+                    recentDeletes = 1;
                 }
                 catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMessage)
                 {
                     failedDeletes = 1;
                 }
             }
-            else
+            else if (recentDeletableMessages.Count > 1)
             {
                 // Split into batches to avoid rate limit
-                var batches = deletableMessages.Chunk(100); // Discord limits 100 messages per batch
+                var batches = recentDeletableMessages.Chunk(100); // Discord limits 100 messages per batch
 
                 foreach (var batch in batches)
                 {
@@ -160,12 +159,12 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
                         if (validMessages.Count > 1)
                         {
                             await channel.DeleteMessagesAsync(validMessages);
-                            successfulDeletes += validMessages.Count;
+                            recentDeletes += validMessages.Count;
                         }
                         else if (validMessages.Count == 1)
                         {
                             await validMessages[0].DeleteAsync();
-                            successfulDeletes += 1;
+                            recentDeletes += 1;
                         }
 
                         // Short delay to avoid rate limit
@@ -184,13 +183,41 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
                 }
             }
 
+            // Delete old messages one-by-one (Discord bulk delete does not support >14 days).
+            foreach (var message in oldDeletableMessages)
+            {
+                try
+                {
+                    await message.DeleteAsync();
+                    oldDeletes++;
+                }
+                catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMessage)
+                {
+                    failedDeletes++;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deleting old message {message.Id}: {ex.Message}");
+                    failedDeletes++;
+                }
+
+                // Gentle pacing for per-message deletes.
+                await Task.Delay(300);
+            }
+
             // Create response message
+            var successfulDeletes = recentDeletes + oldDeletes;
             var responseMessage =
                 $"✅ Deleted {successfulDeletes} messages from the last {messages.Count()} checked.";
-            if (skippedOld > 0 || skippedType > 0)
+            if (recentDeletes > 0 || oldDeletes > 0)
             {
                 responseMessage +=
-                    $"\nℹ️ Skipped {skippedOld} old and {skippedType} unsupported/system messages.";
+                    $"\nℹ️ Deleted {recentDeletes} recent (bulk) and {oldDeletes} old (single-delete) messages.";
+            }
+            if (skippedType > 0)
+            {
+                responseMessage +=
+                    $"\nℹ️ Skipped {skippedType} unsupported/system messages.";
             }
             if (failedDeletes > 0)
             {
