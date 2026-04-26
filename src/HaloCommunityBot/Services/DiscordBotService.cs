@@ -248,12 +248,19 @@ public class DiscordBotService
     {
         if (result.Error == InteractionCommandError.UnmetPrecondition)
         {
-            var reason = result.ErrorReason ?? string.Empty;
+            var reason = (result.ErrorReason ?? string.Empty).Trim();
             var normalized = reason.ToLower(CultureInfo.InvariantCulture);
 
             if (normalized.Contains("permission") || normalized.Contains("manage") || normalized.Contains("administrator"))
             {
-                return "❌ This command couldn't run because of missing permissions for you or the bot in this channel/server.";
+                if (string.IsNullOrWhiteSpace(reason))
+                {
+                    return "❌ This command couldn't run because of missing permissions for you or the bot in this channel/server.";
+                }
+
+                return
+                    "❌ This command couldn't run because of missing permissions for you or the bot in this channel/server." +
+                    $"\nℹ️ Details: {reason}";
             }
 
             return $"❌ Command requirements not met: {reason}";
