@@ -28,6 +28,46 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
                 return;
             }
 
+            if (Context.Guild == null || channel is not IGuildChannel guildChannel)
+            {
+                await FollowupAsync("❌ Could not resolve guild channel permissions for this command.", ephemeral: true);
+                return;
+            }
+
+            // Channel-level permission checks are clearer than relying only on command preconditions.
+            var botPerms = Context.Guild.CurrentUser.GetPermissions(guildChannel);
+            var missingBotPerms = new List<string>();
+
+            if (!botPerms.ViewChannel)
+                missingBotPerms.Add("View Channel");
+            if (!botPerms.ReadMessageHistory)
+                missingBotPerms.Add("Read Message History");
+            if (!botPerms.ManageMessages)
+                missingBotPerms.Add("Manage Messages");
+            if (!botPerms.SendMessages)
+                missingBotPerms.Add("Send Messages");
+
+            if (missingBotPerms.Count > 0)
+            {
+                await FollowupAsync(
+                    $"❌ I don't have enough permissions in #{guildChannel.Name}.\n" +
+                    $"Missing: {string.Join(", ", missingBotPerms)}",
+                    ephemeral: true);
+                return;
+            }
+
+            if (Context.User is IGuildUser invokingUser)
+            {
+                var userPerms = invokingUser.GetPermissions(guildChannel);
+                if (!userPerms.ManageMessages)
+                {
+                    await FollowupAsync(
+                        $"❌ You don't have **Manage Messages** in #{guildChannel.Name}.",
+                        ephemeral: true);
+                    return;
+                }
+            }
+
             // Get messages (excluding slash command message)
             var messages = await channel.GetMessagesAsync(amount, CacheMode.AllowDownload).FlattenAsync();
 
@@ -37,24 +77,39 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
                 return;
             }
 
-            // Filter deletable messages
+            // Filter deletable messages and track why messages are skipped.
             var deletableMessages = new List<IMessage>();
             var now = DateTimeOffset.UtcNow;
+            int skippedOld = 0;
+            int skippedType = 0;
 
             foreach (var message in messages)
             {
-                // Check if the message is deletable (under 14 days and not a system message)
-                if ((now - message.Timestamp).TotalDays < 14 &&
-                    message.Type == MessageType.Default ||
-                    message.Type == MessageType.Reply)
+                // A message is deletable only when it is under 14 days old and is a normal/reply message.
+                var isRecent = (now - message.Timestamp).TotalDays < 14;
+                var isSupportedType = message.Type == MessageType.Default || message.Type == MessageType.Reply;
+
+                if (isRecent && isSupportedType)
                 {
                     deletableMessages.Add(message);
+                }
+                else if (!isRecent)
+                {
+                    skippedOld++;
+                }
+                else
+                {
+                    skippedType++;
                 }
             }
 
             if (!deletableMessages.Any())
             {
-                await FollowupAsync("❌ No messages found to delete! (Messages older than 14 days or system messages cannot be deleted)", ephemeral: true);
+                await FollowupAsync(
+                    $"❌ No messages could be deleted from the last {messages.Count()} checked.\n" +
+                    $"• Older than 14 days: {skippedOld}\n" +
+                    $"• Unsupported/system message types: {skippedType}",
+                    ephemeral: true);
                 return;
             }
 
@@ -130,7 +185,13 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
             }
 
             // Create response message
-            var responseMessage = $"✅ Deleted {successfulDeletes} messages!";
+            var responseMessage =
+                $"✅ Deleted {successfulDeletes} messages from the last {messages.Count()} checked.";
+            if (skippedOld > 0 || skippedType > 0)
+            {
+                responseMessage +=
+                    $"\nℹ️ Skipped {skippedOld} old and {skippedType} unsupported/system messages.";
+            }
             if (failedDeletes > 0)
             {
                 responseMessage += $"\n⚠️ Failed to delete {failedDeletes} messages (may have been deleted or are system messages).";

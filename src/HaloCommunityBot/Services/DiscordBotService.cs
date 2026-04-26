@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Discord.Interactions;
 using DiscordBot.Models;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 
 namespace DiscordBot.Services;
 
@@ -214,6 +215,8 @@ public class DiscordBotService
             if (!result.IsSuccess)
             {
                 _logger.LogError("Command execution failed: {Error}", result.ErrorReason);
+                var userMessage = BuildInteractionErrorMessage(result);
+                await SendInteractionErrorAsync(interaction, userMessage);
             }
         }
         catch (Exception ex)
@@ -224,5 +227,47 @@ public class DiscordBotService
                 await interaction.GetOriginalResponseAsync()
                     .ContinueWith(async msg => await (await msg).DeleteAsync());
         }
+    }
+
+    private async Task SendInteractionErrorAsync(SocketInteraction interaction, string message)
+    {
+        try
+        {
+            if (interaction.HasResponded)
+                await interaction.FollowupAsync(message, ephemeral: true);
+            else
+                await interaction.RespondAsync(message, ephemeral: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send interaction error message to user.");
+        }
+    }
+
+    private static string BuildInteractionErrorMessage(IResult result)
+    {
+        if (result.Error == InteractionCommandError.UnmetPrecondition)
+        {
+            var reason = result.ErrorReason ?? string.Empty;
+            var normalized = reason.ToLower(CultureInfo.InvariantCulture);
+
+            if (normalized.Contains("permission") || normalized.Contains("manage") || normalized.Contains("administrator"))
+            {
+                return "❌ This command couldn't run because of missing permissions for you or the bot in this channel/server.";
+            }
+
+            return $"❌ Command requirements not met: {reason}";
+        }
+
+        if (result.Error == InteractionCommandError.UnknownCommand)
+            return "❌ I couldn't find that command. Please try again in a moment.";
+
+        if (result.Error == InteractionCommandError.BadArgs)
+            return "❌ Invalid command arguments. Please check the command options and try again.";
+
+        if (result.Error == InteractionCommandError.Exception)
+            return "❌ Something went wrong while running that command.";
+
+        return $"❌ Command failed: {result.ErrorReason}";
     }
 }
