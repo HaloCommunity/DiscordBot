@@ -1,7 +1,10 @@
 name: Deploy to Digital Ocean
 
 on:
-  push:
+  workflow_run:
+    workflows: [".NET CI"]
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
@@ -14,11 +17,14 @@ env:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
