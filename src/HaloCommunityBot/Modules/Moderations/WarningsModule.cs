@@ -10,6 +10,7 @@ namespace DiscordBot.Modules.Moderations;
 public class WarningsModule : InteractionModuleBase<SocketInteractionContext>
 {
     [SlashCommand("warnings", "View warnings of a member")]
+    [RequireUserPermission(GuildPermission.ManageMessages)]
     public async Task WarningsAsync(
         [Summary(description: "User to check warnings for")] SocketGuildUser? user = null)
     {

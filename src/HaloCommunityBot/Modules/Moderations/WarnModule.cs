@@ -12,6 +12,7 @@ public class WarnModule : InteractionModuleBase<SocketInteractionContext>
 {
     [SlashCommand("warn", "Warn a member")]
     [RequireUserPermission(GuildPermission.KickMembers)]
+    [RequireBotPermission(GuildPermission.KickMembers)]
     public async Task WarnAsync(
         [Summary(description: "User to warn")] SocketGuildUser user,
         [Summary(description: "Reason for warning")] string reason = "No reason provided")
