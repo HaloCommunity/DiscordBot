@@ -12,33 +12,37 @@ on:
 
 jobs:
   build:
+    name: ${{ matrix.job-name }}
+    continue-on-error: ${{ matrix.experimental }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - dotnet-version: '9.0.313'
-            roll-forward: 'LatestMinor'
+            experimental: false
+            job-name: '.NET 9 (required)'
           - dotnet-version: '10.0.x'
-            roll-forward: 'Major'
+            experimental: true
+            job-name: '.NET 10 (experimental)'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup .NET ${{ matrix.dotnet-version }}
+      - name: Setup ${{ matrix.job-name }} SDK
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ matrix.dotnet-version }}
 
-      - name: Restore dependencies
-        env:
-          DOTNET_ROLL_FORWARD: ${{ matrix.roll-forward }}
+      - name: Remove global.json for experimental compatibility leg
+        if: ${{ matrix.experimental }}
+        run: rm -f global.json
+
+      - name: Restore dependencies (${{ matrix.job-name }})
         run: dotnet restore src/HaloCommunityBot/HaloCommunityBot.csproj
 
-      - name: Build
-        env:
-          DOTNET_ROLL_FORWARD: ${{ matrix.roll-forward }}
+      - name: Build (${{ matrix.job-name }})
         run: dotnet build src/HaloCommunityBot/HaloCommunityBot.csproj --configuration Release --no-restore
 
       # - name: Test
