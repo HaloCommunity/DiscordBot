@@ -16,12 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dotnet-version: [ '9.0.x', '10.0.x' ]
         include:
-          - dotnet-version: '9.0.x'
-            roll-forward: 'LatestFeature'
+          - dotnet-version: '9.0.313'
+            roll-forward: 'LatestMinor'
           - dotnet-version: '10.0.x'
-            roll-forward: 'LatestMajor'
+            roll-forward: 'Major'
 
     steps:
       - name: Checkout code
