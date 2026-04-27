@@ -176,6 +176,40 @@ See [`.github/deployment/DEPLOYMENT_SETUP.md`](.github/deployment/DEPLOYMENT_SET
 
 Deployments are triggered automatically by the `deploy.yml` workflow after a successful CI build on `main`, or manually via `workflow_dispatch`.
 
+## 🏷️ Versioning
+
+HaloCommunityBot now uses a `VersionManager` tool to keep `src/HaloCommunityBot/HaloCommunityBot.csproj` and `CHANGELOG.md` in sync.
+
+1. Build the tool:
+
+```bash
+dotnet build tools/VersionManager/VersionManager.csproj -c Release
+```
+
+1. Optional commit analysis:
+
+```bash
+dotnet artifacts/bin/VersionManager/release/VersionManager.dll check-commits
+```
+
+1. Bump version:
+
+```bash
+dotnet artifacts/bin/VersionManager/release/VersionManager.dll bump --version X.Y.Z --type patch --message "Your description"
+```
+
+1. Validate consistency:
+
+```bash
+dotnet artifacts/bin/VersionManager/release/VersionManager.dll validate
+```
+
+There is also a helper script:
+
+```bash
+./Bump-Version.ps1 -Version X.Y.Z -Type patch -Message "Your description"
+```
+
 ## 🔧 Tech Stack
 
 * [.NET 10](https://dotnet.microsoft.com/) / C# 13

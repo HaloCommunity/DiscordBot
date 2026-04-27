@@ -1,10 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>HaloCommunityBot</RootNamespace>
     <AssemblyName>HaloCommunityBot</AssemblyName>
     <OutputType>Exe</OutputType>
     <UserSecretsId>ca866cec-4adc-4fb2-b01f-ffc1982d3939</UserSecretsId>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,5 +37,17 @@
     <Folder Include="Attributes\" />
     <Folder Include="Utils\" />
   </ItemGroup>
+
+  <Target Name="ValidateVersionConsistency" AfterTargets="Build">
+    <PropertyGroup>
+      <RepoRoot>$(MSBuildThisFileDirectory)../..</RepoRoot>
+      <RepoRootNormalized>$([System.IO.Path]::GetFullPath('$(RepoRoot)'))</RepoRootNormalized>
+      <VersionManagerPath>$(RepoRootNormalized)/artifacts/bin/VersionManager/release/VersionManager.dll</VersionManagerPath>
+    </PropertyGroup>
+    <Message Text="Validating version consistency from: $(RepoRootNormalized)" Importance="high" />
+    <Exec Command="dotnet &quot;$(VersionManagerPath)&quot; validate"
+          WorkingDirectory="$(RepoRootNormalized)"
+          ContinueOnError="false" />
+  </Target>
 
 </Project>
