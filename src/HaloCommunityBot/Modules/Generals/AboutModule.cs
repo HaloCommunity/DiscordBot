@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Attributes;
 using DiscordBot.Services;
 
 namespace DiscordBot.Modules.Generals;
@@ -22,6 +23,7 @@ public class AboutModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [SlashCommand("about", "About this bot")]
+    [Cooldown(5)]
     public async Task AboutAsync()
     {
         var botUser = _client.CurrentUser;

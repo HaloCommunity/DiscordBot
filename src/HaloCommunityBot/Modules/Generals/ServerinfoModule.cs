@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Attributes;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Modules.Generals;
@@ -8,6 +9,7 @@ namespace DiscordBot.Modules.Generals;
 public class ServerinfoModule : InteractionModuleBase<SocketInteractionContext>
 {
     [SlashCommand("serverinfo", "View current server information")]
+    [Cooldown(5)]
     public async Task ServerInfoAsync()
     {
         // Get guild from GuildId if Context.Guild is null (cache issue)

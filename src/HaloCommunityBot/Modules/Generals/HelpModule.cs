@@ -2,6 +2,7 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Attributes;
 
 namespace DiscordBot.Modules.Generals;
 
@@ -15,6 +16,7 @@ public class HelpModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [SlashCommand("help", "Display the list of available commands")]
+    [Cooldown(5)]
     public async Task HelpCommand(
         [Summary("command", "Specific command name to view details")] string? commandName = null)
     {

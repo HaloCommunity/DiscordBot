@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Attributes;
 using System.Threading.Tasks;
 
 namespace DiscordBot.Modules.Generals;
@@ -8,6 +9,7 @@ namespace DiscordBot.Modules.Generals;
 public class UserinfoModule : InteractionModuleBase<SocketInteractionContext>
 {
     [SlashCommand("userinfo", "Get user information")]
+    [Cooldown(5)]
     public async Task UserInfoAsync(SocketUser? user = null)
     {
         user ??= Context.User; // if no user is provided, use the command caller

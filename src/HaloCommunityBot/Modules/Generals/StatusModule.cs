@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Interactions;
+using DiscordBot.Attributes;
 using DiscordBot.Models;
 using DiscordBot.Services;
 using System.Text.Json;
@@ -10,6 +11,9 @@ namespace DiscordBot.Modules.Generals;
 public class StatusModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly BotConfig _config;
+    private static readonly TimeSpan StatusCacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly SemaphoreSlim StatusCacheLock = new(1, 1);
+    private static StatusCacheEntry? _statusCache;
 
     public StatusModule(BotConfig config)
     {
@@ -17,6 +21,7 @@ public class StatusModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [SlashCommand("status", "Show current Halo services status overview")]
+    [Cooldown(15)]
     public async Task StatusAsync(
         [Summary("private", "Return the status only to you (ephemeral)")] bool @private = false)
     {
@@ -41,17 +46,10 @@ public class StatusModule : InteractionModuleBase<SocketInteractionContext>
 
         try
         {
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("HaloCommunityBot/1.0");
-
-            var statusJson = await httpClient.GetStringAsync($"https://api.status.io/1.0/status/{statusPageId}");
-            using var statusDoc = JsonDocument.Parse(statusJson);
-
-            var overview = ParseStatusOverview(statusDoc.RootElement);
-            var mostRecentRssIncident = await TryGetMostRecentIncidentFromRssAsync(httpClient, feedUrl);
-
-            var incidentToShow = overview.ActiveIncident ?? mostRecentRssIncident;
-            var incidentIsActive = overview.ActiveIncident.HasValue;
+            var cachedStatus = await GetCachedStatusDataAsync(feedUrl, statusPageId);
+            var overview = cachedStatus.Overview;
+            var incidentToShow = cachedStatus.IncidentToShow;
+            var incidentIsActive = cachedStatus.IncidentIsActive;
 
             var (color, emoji) = GetOverallAppearance(overview.StatusText, overview.StatusCode);
             var indicatorLabel = GetIndicatorLabel(overview.StatusText, overview.StatusCode);
@@ -66,6 +64,9 @@ public class StatusModule : InteractionModuleBase<SocketInteractionContext>
 
             if (overview.UpdatedAt.HasValue)
                 embed.AddField("Status Updated", overview.UpdatedAt.Value.ToString("yyyy-MM-dd HH:mm 'UTC'"), false);
+
+            var checkedUnix = cachedStatus.CheckedAt.ToUnixTimeSeconds();
+            embed.AddField("Last Checked", $"<t:{checkedUnix}:F> (<t:{checkedUnix}:R>)", false);
 
             if (incidentToShow.HasValue)
             {
@@ -99,6 +100,46 @@ public class StatusModule : InteractionModuleBase<SocketInteractionContext>
         catch (JsonException)
         {
             await FollowupAsync("Status API returned an unexpected response format.", ephemeral: @private);
+        }
+    }
+
+    private static async Task<StatusCacheEntry> GetCachedStatusDataAsync(string feedUrl, string statusPageId)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (_statusCache.HasValue && _statusCache.Value.ExpiresAt > now)
+            return _statusCache.Value;
+
+        await StatusCacheLock.WaitAsync();
+        try
+        {
+            now = DateTimeOffset.UtcNow;
+            if (_statusCache.HasValue && _statusCache.Value.ExpiresAt > now)
+                return _statusCache.Value;
+
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("HaloCommunityBot/1.0");
+
+            var statusJson = await httpClient.GetStringAsync($"https://api.status.io/1.0/status/{statusPageId}");
+            using var statusDoc = JsonDocument.Parse(statusJson);
+
+            var overview = ParseStatusOverview(statusDoc.RootElement);
+            var mostRecentRssIncident = await TryGetMostRecentIncidentFromRssAsync(httpClient, feedUrl);
+            var incidentToShow = overview.ActiveIncident ?? mostRecentRssIncident;
+            var incidentIsActive = overview.ActiveIncident.HasValue;
+
+            var entry = new StatusCacheEntry(
+                overview,
+                incidentToShow,
+                incidentIsActive,
+                now,
+                now.Add(StatusCacheDuration));
+
+            _statusCache = entry;
+            return entry;
+        }
+        finally
+        {
+            StatusCacheLock.Release();
         }
     }
 
@@ -316,4 +357,11 @@ public class StatusModule : InteractionModuleBase<SocketInteractionContext>
         string? Url,
         DateTimeOffset? UpdatedAt,
         string? Summary);
+
+    private readonly record struct StatusCacheEntry(
+        StatusOverview Overview,
+        StatusIncident? IncidentToShow,
+        bool IncidentIsActive,
+        DateTimeOffset CheckedAt,
+        DateTimeOffset ExpiresAt);
 }

@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Attributes;
 
 namespace DiscordBot.Modules.Generals;
 
@@ -14,6 +15,7 @@ public class PingModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [SlashCommand("ping", "Check the bot's latency")]
+    [Cooldown(5)]
     public async Task PingAsync()
     {
         var embed = new EmbedBuilder()

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Attributes;
 
 namespace DiscordBot.Modules.Generals;
 
@@ -13,6 +14,7 @@ public class AvatarModule : InteractionModuleBase<SocketInteractionContext>
 {
 
     [SlashCommand("avatar", "View a user's avatar")]
+    [Cooldown(5)]
     public async Task AvatarAsync(
         [Summary("user", "The user whose avatar you want to view (leave blank to view your own)")]
         SocketUser? user = null)
