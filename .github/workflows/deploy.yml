@@ -35,7 +35,7 @@ jobs:
       run: dotnet restore ${{ env.PROJECT_PATH }}
 
     - name: Build VersionManager (Release)
-      run: dotnet build tools/VersionManager/VersionManager.csproj --configuration Release
+      run: dotnet build "$GITHUB_WORKSPACE/tools/VersionManager/VersionManager.csproj" --configuration Release
     
     - name: Build
       run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore

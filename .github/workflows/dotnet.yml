@@ -43,7 +43,7 @@ jobs:
         run: dotnet restore src/HaloCommunityBot/HaloCommunityBot.csproj
 
       - name: Build VersionManager (Release)
-        run: dotnet build tools/VersionManager/VersionManager.csproj --configuration Release
+        run: dotnet build "$GITHUB_WORKSPACE/tools/VersionManager/VersionManager.csproj" --configuration Release
 
       - name: Build (${{ matrix.job-name }})
         run: dotnet build src/HaloCommunityBot/HaloCommunityBot.csproj --configuration Release --no-restore
