@@ -13,20 +13,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dotnet-version: [ '9.0.x', '10.0.x' ]
+        include:
+          - dotnet-version: '9.0.x'
+            roll-forward: 'LatestFeature'
+          - dotnet-version: '10.0.x'
+            roll-forward: 'LatestMajor'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup .NET
+      - name: Setup .NET ${{ matrix.dotnet-version }}
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: ${{ matrix.dotnet-version }}
 
       - name: Restore dependencies
+        env:
+          DOTNET_ROLL_FORWARD: ${{ matrix.roll-forward }}
         run: dotnet restore src/HaloCommunityBot/HaloCommunityBot.csproj
 
       - name: Build
+        env:
+          DOTNET_ROLL_FORWARD: ${{ matrix.roll-forward }}
         run: dotnet build src/HaloCommunityBot/HaloCommunityBot.csproj --configuration Release --no-restore
 
       # - name: Test
