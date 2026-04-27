@@ -66,6 +66,7 @@ The bot requires the following permissions (the invite URL should include these)
 | `/ping` | Shows bot latency |
 | `/remind <time> <message>` | Sets a reminder |
 | `/serverinfo` | Shows server information |
+| `/status [private]` | Shows Halo services status overview (public by default, optional private response) |
 | `/userinfo [user]` | Shows information about a user |
 
 ### Moderation
@@ -121,6 +122,13 @@ Set `StatusMonitor:Enabled` to `true` and configure:
 | `FeedUrl` | RSS feed URL (defaults to Halo Services Solutions) |
 | `PollIntervalMinutes` | How often to check for new feed items (default: 5) |
 
+### Status Command
+
+Use the slash command:
+
+* `/status` to post the current status overview publicly in-channel
+* `/status private:true` to return the same overview as an ephemeral response only visible to you
+
 ### Environment Variables
 
 In production, settings are provided via environment variables using the `HALOCOMMUNITYBOT_` prefix and `__` as the section separator:
@@ -150,71 +158,3 @@ Deployments are triggered automatically by the `deploy.yml` workflow after a suc
 * [Discord.Net 3.x](https://github.com/discord-net/Discord.Net)
 * `Microsoft.Extensions.Hosting` / `IHostedService`
 * Central package management via `Directory.Packages.props`
-  "Prefix": "!",
-  "GuildId": 0
-  },
-  "Logging": {
-  "LogLevel": {
-  "Default": "Information",
-  "Discord": "Warning"
-  }
-  }
-  }
-
-```
-
-### Configuration Options
-
-- `Token`: Your Discord bot token (required)
-- `Prefix`: Command prefix (optional, defaults to mention-only)
-- `GuildId`: Specific guild ID for testing (0 for global commands)
-
-## 🏗️ Project Structure
-
-```
-
-DiscordBot/
-├── src/
-│   └── DiscordBot/
-│       ├── Commands/           # Command implementations
-│       ├── Services/           # Bot services and dependency injection
-│       ├── Models/             # Data models and configuration
-│       ├── appsettings.json    # Configuration file
-│       └── Program.cs          # Entry point
-├── README.md
-└── LICENSE
-
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-- **Bot not responding**: Check if the bot token is correct and the bot is online
-- **Permission errors**: Ensure the bot has necessary permissions in your Discord server
-- **Commands not found**: Verify that command classes inherit from `BaseCommand` and have the `[DiscordCommand]` attribute
-
-### Getting Help
-
-If you encounter issues:
-1. Check the console output for error messages
-2. Verify your `appsettings.json` configuration
-3. Ensure your bot has proper Discord permissions
-4. Create an issue on GitHub with detailed information about the problem
-
----
-
-**Made with ❤️ and C#**
-```
