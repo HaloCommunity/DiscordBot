@@ -58,7 +58,7 @@ The bot requires the following permissions (the invite URL should include these)
 ### General
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | `/about` | Shows bot information and uptime |
 | `/avatar [user]` | Displays a user's avatar |
 | `/fun` | Random fun commands |
@@ -72,7 +72,7 @@ The bot requires the following permissions (the invite URL should include these)
 ### Moderation
 
 | Command | Required User Permission | Required Bot Permission |
-|---|---|---|
+| --- | --- | --- |
 | `/ban <user> [reason]` | Ban Members | Ban Members |
 | `/unban <userid>` | Ban Members | Ban Members |
 | `/kick <user> [reason]` | Kick Members | Kick Members |
@@ -116,7 +116,7 @@ All settings live under the `Bot` key in `appsettings.json`:
 Set `StatusMonitor:Enabled` to `true` and configure:
 
 | Setting | Description |
-|---|---|
+| --- | --- |
 | `ChannelId` | Channel where status updates are posted |
 | `RoleId` | Role to mention on status updates (set `0` to disable mentions) |
 | `FeedUrl` | RSS feed URL (defaults to Halo Services Solutions) |
@@ -133,7 +133,7 @@ Use the slash command:
 
 In production, settings are provided via environment variables using the `HALOCOMMUNITYBOT_` prefix and `__` as the section separator:
 
-```
+```text
 HALOCOMMUNITYBOT_Bot__Token=your-token-here
 HALOCOMMUNITYBOT_Bot__GuildId=1234567890
 HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=true

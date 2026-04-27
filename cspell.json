@@ -107,6 +107,8 @@
     "syslogidentifier",
     "tolist",
     "tolistasync",
+    "unban",
+    "unmute",
     "userid",
     "userinfo",
     "usermod",
