@@ -1,20 +1,15 @@
-# DiscordBot
+# HaloCommunity Bot
 
-Discord bot built with C# (.NET 9) and [Discord.Net](https://github.com/discord-net/Discord.Net).
+Discord bot for the Halo Community server, built with C# (.NET 9) and [Discord.Net](https://github.com/discord-net/Discord.Net).
 
 ## ✨ Features
 
-- **Mention-based command handling**: Use `@BotName <command>` in Discord to interact
-- **Automatic command registration**: All classes inheriting `BaseCommand` and decorated with `[DiscordCommand]` are auto-registered
-- **Attribute-based permissions**: Use `[RequireGuildPermission]` and `[RequireChannelPermission]` to restrict commands
-- **Built-in commands**:
-  - `help` - Lists all available commands and their permissions
-  - `about` - Shows bot information and uptime
-  - `ping` - Replies with latency
-  - `userinfo` - Shows information about a user
-- **Configuration via `appsettings.json`**: Token, prefix, and more
-- **Comprehensive logging**: Console logging for diagnostics and debugging
-- **.NET 9 and C# 13**: Utilizes the latest language and runtime features
+- **Slash commands** via Discord.Net's `InteractionService`
+- **Moderation tools**: ban, kick, mute, warn, clear, purge, slowmode, lock/unlock
+- **General utilities**: avatar, userinfo, serverinfo, reminders, fun commands, and more
+- **Halo Services status monitor**: polls the [Halo Services Solutions status RSS feed](https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss) and posts updates to a configured channel
+- **Permission-aware error handling**: friendly ephemeral responses when permission checks fail
+- **Deployment via GitHub Actions**: CI build gate → SSH deploy to Linux host with systemd
 
 ## 🚀 Getting Started
 
@@ -23,81 +18,138 @@ Discord bot built with C# (.NET 9) and [Discord.Net](https://github.com/discord-
 - [.NET 9 SDK](https://dotnet.microsoft.com/download)
 - A Discord bot token ([How to create a bot](https://discord.com/developers/applications))
 
-### Setup
+### Local Development
 
 1. **Clone the repository:**
+
    ```bash
-   git clone https://github.com/yourusername/DiscordBot.git
-   cd DiscordBot
+   git clone https://github.com/homotechsual/CommunityDiscordBot.git
+   cd CommunityDiscordBot
    ```
 
-2. **Configure the bot:**
-   - Open `src/DiscordBot/appsettings.json`
-   - Replace `"Token": "Key"` with your actual Discord bot token
-   - Optionally set `"Prefix"` and `"GuildId"`
+2. **Configure the bot** using one of:
+
+   - `src/HaloCommunityBot/appsettings.Development.json` (gitignored)
+   - .NET User Secrets: `dotnet user-secrets set "Bot:Token" "your-token-here" --project src/HaloCommunityBot`
 
 3. **Build and run:**
+
    ```bash
-   dotnet build src/DiscordBot
-   dotnet run --project src/DiscordBot
+   dotnet run --project src/HaloCommunityBot
    ```
 
-### Bot Permissions
+   In `Debug` builds, slash commands are registered to the guild specified by `Bot:GuildId` for instant availability. Release builds register commands globally.
 
-Make sure your bot has the following permissions in your Discord server:
-- Read Messages
+### Required Bot Permissions
+
+The bot requires the following permissions (the invite URL should include these):
+
+- Read Messages / View Channels
 - Send Messages
-- Use Slash Commands (if applicable)
 - Embed Links
+- Manage Messages
+- Kick Members
+- Ban Members
+- Moderate Members (for timeout/mute)
+- Manage Channels (for lock/slowmode)
 
-## 📖 Usage
+## 📖 Commands
 
-Mention the bot in any channel it has access to:
+### General
 
-- `@BotName help` — Lists all commands and their permissions
-- `@BotName about` — Shows bot info and uptime
-- `@BotName ping` — Replies with latency
-- `@BotName userinfo [@user]` — Shows info about a user (optional user parameter)
+| Command | Description |
+|---|---|
+| `/about` | Shows bot information and uptime |
+| `/avatar [user]` | Displays a user's avatar |
+| `/fun` | Random fun commands |
+| `/help` | Lists all available commands |
+| `/ping` | Shows bot latency |
+| `/remind <time> <message>` | Sets a reminder |
+| `/serverinfo` | Shows server information |
+| `/userinfo [user]` | Shows information about a user |
 
-## 🔧 Extending the Bot
+### Moderation
 
-To add a new command:
+| Command | Required User Permission | Required Bot Permission |
+|---|---|---|
+| `/ban <user> [reason]` | Ban Members | Ban Members |
+| `/unban <userid>` | Ban Members | Ban Members |
+| `/kick <user> [reason]` | Kick Members | Kick Members |
+| `/mute <user> <duration> [reason]` | Moderate Members | Moderate Members |
+| `/unmute <user>` | Moderate Members | Moderate Members |
+| `/warn <user> <reason>` | Kick Members | Kick Members |
+| `/warnings <user>` | Manage Messages | — |
+| `/clear <amount>` | Manage Messages | Manage Messages |
+| `/purge_user <user> <amount>` | Manage Messages | Manage Messages |
+| `/lock [channel]` | Manage Channels | Manage Channels |
+| `/unlock [channel]` | Manage Channels | Manage Channels |
+| `/slowmode <seconds>` | Manage Channels | Manage Channels |
 
-1. Create a class inheriting from `BaseCommand` in the `Commands` folder
-2. Decorate the class with `[DiscordCommand("yourcommand", "Description here")]`
-3. (Optional) Add permission attributes:
-   - `[RequireGuildPermission(GuildPermission.Administrator)]`
-   - `[RequireChannelPermission(ChannelPermission.ManageMessages)]`
-4. Implement the `ExecuteAsync(SocketMessage message, string[] args)` method
-
-### Example Command
-
-```csharp
-[DiscordCommand("greet", "Greets the user")]
-[RequireGuildPermission(GuildPermission.SendMessages)]
-public class GreetCommand : BaseCommand
-{
-    public override async Task ExecuteAsync(SocketMessage message, string[] args)
-    {
-        var greeting = args.Length > 0 
-            ? $"Hello, {string.Join(" ", args)}!" 
-            : $"Hello, {message.Author.Username}!";
-            
-        await ReplyAsync(message, greeting);
-    }
-}
-```
-
-The bot will automatically discover and register your command at startup.
+> **Note:** `/warn` auto-kicks a user after 3 accumulated warnings.
 
 ## ⚙️ Configuration
 
-Example `appsettings.json`:
+All settings live under the `Bot` key in `appsettings.json`:
 
 ```json
 {
   "Bot": {
-    "Token": "YOUR_BOT_TOKEN",
+    "Token": "",
+    "Prefix": "!",
+    "GuildId": 0,
+    "AllowPrefixCommands": false,
+    "AllowedFunChannels": [],
+    "StatusMonitor": {
+      "Enabled": false,
+      "ChannelId": 0,
+      "RoleId": 0,
+      "FeedUrl": "https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss",
+      "PollIntervalMinutes": 5
+    }
+  }
+}
+```
+
+### Status Monitor
+
+Set `StatusMonitor:Enabled` to `true` and configure:
+
+| Setting | Description |
+|---|---|
+| `ChannelId` | Channel where status updates are posted |
+| `RoleId` | Role to mention on status updates (set `0` to disable mentions) |
+| `FeedUrl` | RSS feed URL (defaults to Halo Services Solutions) |
+| `PollIntervalMinutes` | How often to check for new feed items (default: 5) |
+
+### Environment Variables
+
+In production, settings are provided via environment variables using the `HALOCOMMUNITYBOT_` prefix and `__` as the section separator:
+
+```
+HALOCOMMUNITYBOT_Bot__Token=your-token-here
+HALOCOMMUNITYBOT_Bot__GuildId=1234567890
+HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=true
+HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=1234567890
+HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=1234567890
+```
+
+## 🚢 Deployment
+
+See [`.github/deployment/DEPLOYMENT_SETUP.md`](.github/deployment/DEPLOYMENT_SETUP.md) for full host setup instructions, including:
+
+- Creating the `deployer` service account
+- Installing the systemd service unit
+- Configuring the `.env` file
+- Setting up the required sudoers entries for the GitHub Actions deploy workflow
+
+Deployments are triggered automatically by the `deploy.yml` workflow after a successful CI build on `main`, or manually via `workflow_dispatch`.
+
+## 🔧 Tech Stack
+
+- [.NET 9](https://dotnet.microsoft.com/) / C# 13
+- [Discord.Net 3.x](https://github.com/discord-net/Discord.Net)
+- `Microsoft.Extensions.Hosting` / `IHostedService`
+- Central package management via `Directory.Packages.props`
     "Prefix": "!",
     "GuildId": 0
   },
