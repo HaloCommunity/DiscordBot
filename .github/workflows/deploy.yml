@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.203'
   PROJECT_PATH: 'src/HaloCommunityBot/HaloCommunityBot.csproj'
   DEPLOY_USER: 'deployer'
   DEPLOY_PATH: '/opt/halocommunitybot'

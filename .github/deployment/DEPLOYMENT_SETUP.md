@@ -50,13 +50,20 @@ Environment variable names use the `HALOCOMMUNITYBOT_` prefix and `__` (double-u
 | `HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId` | `Bot:StatusMonitor:ChannelId` | Channel to post status updates |
 | `HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId` | `Bot:StatusMonitor:RoleId` | Optional role to mention for status updates |
 
-### 4. Install .NET Runtime
+### 4. Install .NET 10 Runtime
 
 ```bash
 wget https://dot.net/v1/dotnet-install.sh
 chmod +x dotnet-install.sh
-./dotnet-install.sh --channel 9.0 --runtime aspnetcore --install-dir /usr/local/dotnet
+./dotnet-install.sh --channel 10.0 --runtime aspnetcore --install-dir /usr/local/dotnet
 sudo ln -sf /usr/local/dotnet/dotnet /usr/bin/dotnet
+```
+
+Verify the installed runtime:
+
+```bash
+dotnet --list-runtimes | grep Microsoft.AspNetCore.App
+dotnet --version
 ```
 
 ### 5. Install Systemd Service

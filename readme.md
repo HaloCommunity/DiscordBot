@@ -1,6 +1,6 @@
 # HaloCommunity Bot
 
-Discord bot for the Halo Community server, built with C# (.NET 9) and [Discord.Net](https://github.com/discord-net/Discord.Net).
+Discord bot for the Halo Community server, built with C# (.NET 10) and [Discord.Net](https://github.com/discord-net/Discord.Net).
 
 ## ✨ Features
 
@@ -15,7 +15,7 @@ Discord bot for the Halo Community server, built with C# (.NET 9) and [Discord.N
 
 ### Prerequisites
 
-* [.NET 9 SDK](https://dotnet.microsoft.com/download)
+* [.NET 10 SDK](https://dotnet.microsoft.com/download)
 * A Discord bot token ([How to create a bot](https://discord.com/developers/applications))
 
 ### Local Development
@@ -178,7 +178,7 @@ Deployments are triggered automatically by the `deploy.yml` workflow after a suc
 
 ## 🔧 Tech Stack
 
-* [.NET 9](https://dotnet.microsoft.com/) / C# 13
+* [.NET 10](https://dotnet.microsoft.com/) / C# 13
 * [Discord.Net 3.x](https://github.com/discord-net/Discord.Net)
 * `Microsoft.Extensions.Hosting` / `IHostedService`
 * Central package management via `Directory.Packages.props`
