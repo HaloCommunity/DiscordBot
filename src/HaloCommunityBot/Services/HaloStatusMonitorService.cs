@@ -3,8 +3,6 @@ using Discord.WebSocket;
 using DiscordBot.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace DiscordBot.Services;
@@ -13,7 +11,7 @@ namespace DiscordBot.Services;
 /// Background service that polls the Halo Services status RSS feed and posts
 /// a Discord embed to a configured channel whenever a new status item appears.
 /// </summary>
-public partial class HaloStatusMonitorService : BackgroundService
+public class HaloStatusMonitorService : BackgroundService
 {
     private readonly DiscordSocketClient _client;
     private readonly BotConfig _config;
@@ -21,9 +19,6 @@ public partial class HaloStatusMonitorService : BackgroundService
     private readonly ILogger<HaloStatusMonitorService> _logger;
     private readonly HashSet<string> _seenGuids = new(StringComparer.Ordinal);
     private bool _initialized;
-
-    [GeneratedRegex("<[^>]+>")]
-    private static partial Regex HtmlTagRegex();
 
     public HaloStatusMonitorService(
         DiscordSocketClient client,
@@ -133,11 +128,9 @@ public partial class HaloStatusMonitorService : BackgroundService
             pubDate = parsed;
 
         // Strip HTML tags and decode HTML entities from the description.
-        var description = WebUtility.HtmlDecode(HtmlTagRegex().Replace(rawDescription, string.Empty)).Trim();
-        if (description.Length > 2048)
-            description = string.Concat(description.AsSpan(0, 2045), "...");
+        var description = HaloStatusFormatting.StripHtmlAndDecode(rawDescription);
 
-        var (color, emoji) = DetermineStatusAppearance(title);
+        var (color, emoji) = HaloStatusFormatting.DetermineStatusAppearance(title);
 
         var embed = new EmbedBuilder()
             .WithTitle($"{emoji} {title}")
@@ -157,34 +150,6 @@ public partial class HaloStatusMonitorService : BackgroundService
 
         await channel.SendMessageAsync(text: mentionText, embed: embed.Build());
         _logger.LogInformation("Posted Halo status update: {Title}", title);
-    }
-
-    /// <summary>
-    /// Determines the embed colour and emoji based on keywords in the item title.
-    /// Statuspage.io prefixes titles with the current state, e.g. "[Investigating]".
-    /// </summary>
-    private static (Color color, string emoji) DetermineStatusAppearance(string title)
-    {
-        var lower = title.ToLowerInvariant();
-
-        return lower switch
-        {
-            _ when lower.Contains("resolved") || lower.Contains("completed") || lower.Contains("postmortem")
-                => (Color.Green, "✅"),
-            _ when lower.Contains("investigating") || lower.Contains("outage")
-                => (Color.Red, "🔴"),
-            _ when lower.Contains("identified")
-                => (new Color(0xFF6B35), "🟠"),
-            _ when lower.Contains("monitoring")
-                => (Color.Gold, "👀"),
-            _ when lower.Contains("in progress")
-                => (Color.Orange, "⚙️"),
-            _ when lower.Contains("maintenance") || lower.Contains("scheduled")
-                => (new Color(0x5865F2), "🔧"),
-            _ when lower.Contains("degraded") || lower.Contains("partial")
-                => (Color.Orange, "⚠️"),
-            _ => (Color.LightOrange, "ℹ️")
-        };
     }
 
     public override void Dispose()
