@@ -178,7 +178,8 @@ public class DiscordBotService
         {
             _logger.LogError("Slash command {CommandName} failed: {Error}", command.Name, result.ErrorReason);
             var userMessage = BuildInteractionErrorMessage(result);
-            await SendInteractionErrorAsync(context.Interaction, userMessage);
+            if (context.Interaction is SocketInteraction socketInteraction)
+                await SendInteractionErrorAsync(socketInteraction, userMessage);
         }
         else
         {
