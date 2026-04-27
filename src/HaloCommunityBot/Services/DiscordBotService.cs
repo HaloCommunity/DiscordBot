@@ -169,19 +169,21 @@ public class DiscordBotService
     }
 
     /// <summary>
-    /// Called when a slash command is executed.
+    /// Called when a slash command is executed. This is the correct place to handle precondition
+    /// failures because ExecuteCommandAsync returns success on dispatch even when preconditions fail.
     /// </summary>
-    private Task SlashCommandExecutedAsync(SlashCommandInfo command, IInteractionContext context, IResult result)
+    private async Task SlashCommandExecutedAsync(SlashCommandInfo command, IInteractionContext context, IResult result)
     {
         if (!result.IsSuccess)
         {
             _logger.LogError("Slash command {CommandName} failed: {Error}", command.Name, result.ErrorReason);
+            var userMessage = BuildInteractionErrorMessage(result);
+            await SendInteractionErrorAsync(context.Interaction, userMessage);
         }
         else
         {
             _logger.LogInformation("Slash command {CommandName} executed successfully", command.Name);
         }
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -212,12 +214,8 @@ public class DiscordBotService
             
             var result = await _interactionService.ExecuteCommandAsync(ctx, _services);
             
-            if (!result.IsSuccess)
-            {
-                _logger.LogError("Command execution failed: {Error}", result.ErrorReason);
-                var userMessage = BuildInteractionErrorMessage(result);
-                await SendInteractionErrorAsync(interaction, userMessage);
-            }
+            // Slash command results (including precondition failures) are handled in
+            // SlashCommandExecutedAsync via the SlashCommandExecuted event.
         }
         catch (Exception ex)
         {
