@@ -6,12 +6,27 @@ namespace DiscordBot.Services;
 
 internal static partial class HaloStatusFormatting
 {
+    [GeneratedRegex("<(br|br/|br /)>", RegexOptions.IgnoreCase)]
+    private static partial Regex BrTagRegex();
+
+    [GeneratedRegex("</(p|div|li|h1|h2|h3|h4|h5|h6)>", RegexOptions.IgnoreCase)]
+    private static partial Regex BlockCloseTagRegex();
+
     [GeneratedRegex("<[^>]+>")]
     private static partial Regex HtmlTagRegex();
 
+    [GeneratedRegex("\n{3,}")]
+    private static partial Regex MultiNewlineRegex();
+
     internal static string StripHtmlAndDecode(string rawDescription, int maxLength = 2048)
     {
-        var description = WebUtility.HtmlDecode(HtmlTagRegex().Replace(rawDescription ?? string.Empty, string.Empty)).Trim();
+        var html = rawDescription ?? string.Empty;
+        html = BrTagRegex().Replace(html, "\n");
+        html = BlockCloseTagRegex().Replace(html, "\n");
+
+        var description = WebUtility.HtmlDecode(HtmlTagRegex().Replace(html, string.Empty));
+        description = description.Replace("\r\n", "\n").Replace('\r', '\n');
+        description = MultiNewlineRegex().Replace(description, "\n\n").Trim();
 
         if (description.Length > maxLength)
             return string.Concat(description.AsSpan(0, maxLength - 3), "...");
