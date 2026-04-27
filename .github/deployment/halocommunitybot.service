@@ -1,0 +1,31 @@
+[Unit]
+Description=Halo Community Discord Bot Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deployer
+WorkingDirectory=/opt/halocommunitybot
+ExecStart=/opt/halocommunitybot/HaloCommunityBot
+Restart=on-failure
+RestartSec=5
+KillMode=process
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=halocommunitybot
+
+# Runtime location (installed to non-standard path via dotnet-install.sh)
+Environment=DOTNET_ROOT=/usr/local/dotnet
+
+# Bot secrets / config overrides
+EnvironmentFile=/opt/halocommunitybot/.env
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/halocommunitybot
+
+[Install]
+WantedBy=multi-user.target

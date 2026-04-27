@@ -62,14 +62,18 @@ sudo ln -sf /usr/local/dotnet/dotnet /usr/bin/dotnet
 Verify the installed runtime:
 
 ```bash
-dotnet --list-runtimes | grep Microsoft.AspNetCore.App
-dotnet --version
+/usr/local/dotnet/dotnet --list-runtimes | grep Microsoft.AspNetCore.App
 ```
+
+> **Important:** `dotnet --version` will report "No .NET SDKs were found" on a runtime-only install — that is expected and fine. The bot binary locates the runtime via `DOTNET_ROOT=/usr/local/dotnet`, which is set in the systemd service unit (see step 5).
 
 ### 5. Install Systemd Service
 
+The service unit file is committed at `.github/deployment/halocommunitybot.service` in this repo.
+It sets `DOTNET_ROOT=/usr/local/dotnet` so the framework-dependent binary can find the runtime.
+
 ```bash
-sudo cp halocommunitybot.service /etc/systemd/system/
+sudo cp .github/deployment/halocommunitybot.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable halocommunitybot.service
 ```
