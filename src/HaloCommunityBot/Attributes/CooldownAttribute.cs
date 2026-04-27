@@ -32,7 +32,7 @@ public class CooldownAttribute : PreconditionAttribute
     {
         var now = DateTimeOffset.UtcNow;
         var commandKey = commandInfo.Name ?? "unknown";
-        var key = $"{context.User.Id}:{commandKey}";
+        var key = $"{context.User.Id}:{commandKey}"; // per-user: each user has their own independent cooldown
         var duration = TimeSpan.FromSeconds(ResolveCooldownSeconds(commandKey, services));
 
         if (Cooldowns.TryGetValue(key, out var expiresAt) && expiresAt > now)

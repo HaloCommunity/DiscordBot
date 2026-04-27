@@ -249,6 +249,14 @@ public class DiscordBotService
         if (result.Error == InteractionCommandError.UnmetPrecondition)
         {
             var reason = (result.ErrorReason ?? string.Empty).Trim();
+
+            // Cooldown errors carry the retry time in the reason — surface them cleanly.
+            if (reason.Contains("too quickly", StringComparison.OrdinalIgnoreCase) ||
+                reason.Contains("cooldown", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"⏱️ {reason}";
+            }
+
             var normalized = reason.ToLower(CultureInfo.InvariantCulture);
 
             if (normalized.Contains("permission") || normalized.Contains("manage") || normalized.Contains("administrator"))
