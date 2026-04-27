@@ -4,19 +4,19 @@ Discord bot for the Halo Community server, built with C# (.NET 9) and [Discord.N
 
 ## ✨ Features
 
-- **Slash commands** via Discord.Net's `InteractionService`
-- **Moderation tools**: ban, kick, mute, warn, clear, purge, slowmode, lock/unlock
-- **General utilities**: avatar, userinfo, serverinfo, reminders, fun commands, and more
-- **Halo Services status monitor**: polls the [Halo Services Solutions status RSS feed](https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss) and posts updates to a configured channel
-- **Permission-aware error handling**: friendly ephemeral responses when permission checks fail
-- **Deployment via GitHub Actions**: CI build gate → SSH deploy to Linux host with systemd
+* **Slash commands** via Discord.Net's `InteractionService`
+* **Moderation tools**: ban, kick, mute, warn, clear, purge, slowmode, lock/unlock
+* **General utilities**: avatar, userinfo, serverinfo, reminders, fun commands, and more
+* **Halo Services status monitor**: polls the [Halo Services Solutions status RSS feed](https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss) and posts updates to a configured channel
+* **Permission-aware error handling**: friendly ephemeral responses when permission checks fail
+* **Deployment via GitHub Actions**: CI build gate → SSH deploy to Linux host with systemd
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
-- A Discord bot token ([How to create a bot](https://discord.com/developers/applications))
+* [.NET 9 SDK](https://dotnet.microsoft.com/download)
+* A Discord bot token ([How to create a bot](https://discord.com/developers/applications))
 
 ### Local Development
 
@@ -29,8 +29,8 @@ Discord bot for the Halo Community server, built with C# (.NET 9) and [Discord.N
 
 2. **Configure the bot** using one of:
 
-   - `src/HaloCommunityBot/appsettings.Development.json` (gitignored)
-   - .NET User Secrets: `dotnet user-secrets set "Bot:Token" "your-token-here" --project src/HaloCommunityBot`
+   * `src/HaloCommunityBot/appsettings.Development.json` (gitignored)
+   * .NET User Secrets: `dotnet user-secrets set "Bot:Token" "your-token-here" --project src/HaloCommunityBot`
 
 3. **Build and run:**
 
@@ -44,14 +44,14 @@ Discord bot for the Halo Community server, built with C# (.NET 9) and [Discord.N
 
 The bot requires the following permissions (the invite URL should include these):
 
-- Read Messages / View Channels
-- Send Messages
-- Embed Links
-- Manage Messages
-- Kick Members
-- Ban Members
-- Moderate Members (for timeout/mute)
-- Manage Channels (for lock/slowmode)
+* Read Messages / View Channels
+* Send Messages
+* Embed Links
+* Manage Messages
+* Kick Members
+* Ban Members
+* Moderate Members (for timeout/mute)
+* Manage Channels (for lock/slowmode)
 
 ## 📖 Commands
 
@@ -137,29 +137,30 @@ HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=1234567890
 
 See [`.github/deployment/DEPLOYMENT_SETUP.md`](.github/deployment/DEPLOYMENT_SETUP.md) for full host setup instructions, including:
 
-- Creating the `deployer` service account
-- Installing the systemd service unit
-- Configuring the `.env` file
-- Setting up the required sudoers entries for the GitHub Actions deploy workflow
+* Creating the `deployer` service account
+* Installing the systemd service unit
+* Configuring the `.env` file
+* Setting up the required sudoers entries for the GitHub Actions deploy workflow
 
 Deployments are triggered automatically by the `deploy.yml` workflow after a successful CI build on `main`, or manually via `workflow_dispatch`.
 
 ## 🔧 Tech Stack
 
-- [.NET 9](https://dotnet.microsoft.com/) / C# 13
-- [Discord.Net 3.x](https://github.com/discord-net/Discord.Net)
-- `Microsoft.Extensions.Hosting` / `IHostedService`
-- Central package management via `Directory.Packages.props`
-    "Prefix": "!",
-    "GuildId": 0
+* [.NET 9](https://dotnet.microsoft.com/) / C# 13
+* [Discord.Net 3.x](https://github.com/discord-net/Discord.Net)
+* `Microsoft.Extensions.Hosting` / `IHostedService`
+* Central package management via `Directory.Packages.props`
+  "Prefix": "!",
+  "GuildId": 0
   },
   "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Discord": "Warning"
-    }
+  "LogLevel": {
+  "Default": "Information",
+  "Discord": "Warning"
   }
-}
+  }
+  }
+
 ```
 
 ### Configuration Options
@@ -171,6 +172,7 @@ Deployments are triggered automatically by the `deploy.yml` workflow after a suc
 ## 🏗️ Project Structure
 
 ```
+
 DiscordBot/
 ├── src/
 │   └── DiscordBot/
@@ -181,6 +183,7 @@ DiscordBot/
 │       └── Program.cs          # Entry point
 ├── README.md
 └── LICENSE
+
 ```
 
 ## 🤝 Contributing
@@ -214,3 +217,4 @@ If you encounter issues:
 ---
 
 **Made with ❤️ and C#**
+```
