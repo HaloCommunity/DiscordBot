@@ -100,6 +100,10 @@ All settings live under the `Bot` key in `appsettings.json`:
     "GuildId": 0,
     "AllowPrefixCommands": false,
     "AllowedFunChannels": [],
+    "Cooldowns": {
+      "UserInfo": 5,
+      "Status": 15
+    },
     "StatusMonitor": {
       "Enabled": false,
       "ChannelId": 0,
@@ -129,6 +133,24 @@ Use the slash command:
 * `/status` to post the current status overview publicly in-channel
 * `/status private:true` to return the same overview as an ephemeral response only visible to you
 
+### Cooldowns
+
+Cooldowns are configured per command under `Bot:Cooldowns` (in seconds).
+Code-level defaults are still used when no config override is provided.
+
+Example:
+
+```json
+{
+  "Bot": {
+    "Cooldowns": {
+      "UserInfo": 5,
+      "Status": 15
+    }
+  }
+}
+```
+
 ### Environment Variables
 
 In production, settings are provided via environment variables using the `HALOCOMMUNITYBOT_` prefix and `__` as the section separator:
@@ -136,6 +158,8 @@ In production, settings are provided via environment variables using the `HALOCO
 ```text
 HALOCOMMUNITYBOT_Bot__Token=your-token-here
 HALOCOMMUNITYBOT_Bot__GuildId=1234567890
+HALOCOMMUNITYBOT_Bot__Cooldowns__UserInfo=5
+HALOCOMMUNITYBOT_Bot__Cooldowns__Status=15
 HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=true
 HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=1234567890
 HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=1234567890
