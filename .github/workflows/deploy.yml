@@ -99,14 +99,20 @@ jobs:
     - name: Check service status
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "for i in 1 2 3 4 5; do \
-             STATE=\$(sudo -n systemctl is-active halocommunitybot.service); \
-             echo \"Attempt \$i: \$STATE\"; \
-             [ \"\$STATE\" = \"active\" ] && break; \
-             [ \$i -lt 5 ] && sleep 3; \
+          "ok=0; \
+           for i in \$(seq 1 20); do \
+             ACTIVE=\$(sudo -n systemctl is-active halocommunitybot.service || true); \
+             SUB=\$(sudo -n systemctl show -p SubState --value halocommunitybot.service || true); \
+             echo \"Attempt \$i: active=\$ACTIVE substate=\$SUB\"; \
+             if [ \"\$ACTIVE\" = \"active\" ] && [ \"\$SUB\" = \"running\" ]; then \
+               ok=1; \
+               break; \
+             fi; \
+             sleep 3; \
            done; \
-           sudo -n systemctl status halocommunitybot.service --no-pager; \
-           sudo -n systemctl is-active --quiet halocommunitybot.service"
+           sudo -n systemctl status halocommunitybot.service --no-pager || true; \
+           sudo -n journalctl -u halocommunitybot.service -n 80 --no-pager || true; \
+           [ \"\$ok\" -eq 1 ]"
     
     - name: Cleanup SSH key
       if: always()
