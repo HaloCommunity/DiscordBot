@@ -113,7 +113,8 @@ public class DiscordBotService
             _ => LogLevel.Information
         };
 
-        _logger.Log(logLevel, log.Exception, "{Source}: {Message}", log.Source, log.Message);
+        var message = string.IsNullOrWhiteSpace(log.Message) ? "(empty message)" : log.Message;
+        _logger.Log(logLevel, log.Exception, "{Source}: {Message}", log.Source, message);
         return Task.CompletedTask;
     }
 
