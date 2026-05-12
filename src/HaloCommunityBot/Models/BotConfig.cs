@@ -9,4 +9,5 @@ public class BotConfig
     public Dictionary<string, int> Cooldowns { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public StatusMonitorConfig StatusMonitor { get; set; } = new();
     public YoutubeMonitorConfig YoutubeMonitor { get; set; } = new();
+    public HeartbeatConfig Heartbeat { get; set; } = new();
 }

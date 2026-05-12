@@ -110,6 +110,20 @@ All settings live under the `Bot` key in `appsettings.json`:
       "RoleId": 0,
       "FeedUrl": "https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss",
       "PollIntervalMinutes": 5
+    },
+    "YoutubeMonitor": {
+      "Enabled": false,
+      "ForumChannelId": 0,
+      "PollIntervalMinutes": 15,
+      "DefaultPostTitleTemplate": "[{ChannelName}] {VideoTitle}",
+      "Channels": []
+    },
+    "Heartbeat": {
+      "Enabled": false,
+      "PushUrl": "",
+      "IntervalSeconds": 60,
+      "StartupDelaySeconds": 15,
+      "TimeoutSeconds": 10
     }
   }
 }
@@ -125,6 +139,28 @@ Set `StatusMonitor:Enabled` to `true` and configure:
 | `RoleId` | Role to mention on status updates (set `0` to disable mentions) |
 | `FeedUrl` | RSS feed URL (defaults to Halo Services Solutions) |
 | `PollIntervalMinutes` | How often to check for new feed items (default: 5) |
+
+### YouTube Monitor
+
+Set `YoutubeMonitor:Enabled` to `true` and configure:
+
+| Setting | Description |
+| --- | --- |
+| `ForumChannelId` | Discord forum channel ID where new video threads are created |
+| `PollIntervalMinutes` | Feed polling cadence (default: 15) |
+| `DefaultPostTitleTemplate` | Thread title template (supports `{ChannelName}` and `{VideoTitle}`) |
+| `Channels` | Optional startup seed list of YouTube channel IDs; channel management is usually done via `/youtube` admin commands |
+
+### Uptime Heartbeat
+
+Set `Heartbeat:Enabled` to `true` and configure:
+
+| Setting | Description |
+| --- | --- |
+| `PushUrl` | Uptime Kuma push monitor URL (for example `/api/push/<token>`) |
+| `IntervalSeconds` | Heartbeat cadence in seconds (minimum enforced: 15) |
+| `StartupDelaySeconds` | Delay after bot startup before first heartbeat |
+| `TimeoutSeconds` | HTTP timeout for heartbeat push |
 
 ### Status Command
 
@@ -163,7 +199,37 @@ HALOCOMMUNITYBOT_Bot__Cooldowns__Status=15
 HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=true
 HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=1234567890
 HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=1234567890
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled=true
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId=1234567890
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes=15
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate=[{ChannelName}] {VideoTitle}
+HALOCOMMUNITYBOT_Bot__Heartbeat__Enabled=true
+HALOCOMMUNITYBOT_Bot__Heartbeat__PushUrl=https://kuma.example.com/api/push/xxxxx
+HALOCOMMUNITYBOT_Bot__Heartbeat__IntervalSeconds=60
+HALOCOMMUNITYBOT_Bot__Heartbeat__StartupDelaySeconds=15
+HALOCOMMUNITYBOT_Bot__Heartbeat__TimeoutSeconds=10
 ```
+
+### GitHub Secrets (Deploy Workflow)
+
+If you deploy with `.github/workflows/deploy.yml`, configure these repository secrets and they will be written into the runtime `.env` file on host:
+
+| GitHub Secret | Runtime Environment Variable |
+| --- | --- |
+| `DISCORD_TOKEN` | `HALOCOMMUNITYBOT_Bot__Token` |
+| `STATUS_MONITOR_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId` |
+| `STATUS_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId` |
+| `YOUTUBE_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled` |
+| `YOUTUBE_FORUM_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId` |
+| `YOUTUBE_POLL_INTERVAL_MINUTES` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes` |
+| `YOUTUBE_DEFAULT_POST_TITLE_TEMPLATE` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate` |
+| `HEARTBEAT_ENABLED` | `HALOCOMMUNITYBOT_Bot__Heartbeat__Enabled` |
+| `HEARTBEAT_PUSH_URL` | `HALOCOMMUNITYBOT_Bot__Heartbeat__PushUrl` |
+| `HEARTBEAT_INTERVAL_SECONDS` | `HALOCOMMUNITYBOT_Bot__Heartbeat__IntervalSeconds` |
+| `HEARTBEAT_STARTUP_DELAY_SECONDS` | `HALOCOMMUNITYBOT_Bot__Heartbeat__StartupDelaySeconds` |
+| `HEARTBEAT_TIMEOUT_SECONDS` | `HALOCOMMUNITYBOT_Bot__Heartbeat__TimeoutSeconds` |
+
+Note: `YoutubeMonitor:Channels` is best managed through `/youtube add` and persisted in SQLite, instead of storing an array in secrets.
 
 ## 🚢 Deployment
 

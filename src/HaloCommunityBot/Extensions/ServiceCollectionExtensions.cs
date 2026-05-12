@@ -42,8 +42,10 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<HaloCommunityBotContext>(options => options.UseSqlite(connectionString));
 
         services.AddSingleton<DiscordBotService>();
+        services.AddHttpClient<HeartbeatMonitorService>();
         services.AddHostedService<HaloStatusMonitorService>();
         services.AddHostedService<YoutubeMonitorService>();
+        services.AddHostedService<HeartbeatMonitorService>();
 
         return services;
     }
