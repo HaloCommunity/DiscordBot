@@ -279,7 +279,8 @@ public class YoutubeMonitorService : BackgroundService
             {
                 pending = pending
                     .Where(video => keywords.Any(keyword => 
-                        video.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                        video.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                        video.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
             }
         }
@@ -363,6 +364,7 @@ public class YoutubeMonitorService : BackgroundService
         }
 
         var title = entry.Element(AtomNamespace + "title")?.Value?.Trim() ?? videoId;
+        var description = entry.Element(AtomNamespace + "summary")?.Value?.Trim() ?? string.Empty;
         var link = entry.Elements(AtomNamespace + "link")
             .FirstOrDefault(x => string.Equals(x.Attribute("rel")?.Value, "alternate", StringComparison.OrdinalIgnoreCase))
             ?.Attribute("href")?.Value?.Trim()
@@ -375,12 +377,12 @@ public class YoutubeMonitorService : BackgroundService
             publishedAt = parsedPublishedAt;
         }
 
-        return new YouTubeVideoEntry(videoId, title, link, publishedAt);
+        return new YouTubeVideoEntry(videoId, title, link, publishedAt, description);
     }
 
     private sealed record YouTubeFeed(string ChannelName, IReadOnlyList<YouTubeVideoEntry> Videos);
 
-    private sealed record YouTubeVideoEntry(string VideoId, string Title, string Url, DateTime PublishedAt);
+    private sealed record YouTubeVideoEntry(string VideoId, string Title, string Url, DateTime PublishedAt, string Description = "");
 
     public override void Dispose()
     {
