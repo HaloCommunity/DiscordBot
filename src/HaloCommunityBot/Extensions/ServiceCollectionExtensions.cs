@@ -2,7 +2,9 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Models;
+using DiscordBot.Core.Data;
 using DiscordBot.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,8 +38,12 @@ public static class ServiceCollectionExtensions
             return new InteractionService(client);
         });
 
+        var connectionString = configuration.GetConnectionString("DefaultConnection") ?? "Data Source=./halocommunitybot.db";
+        services.AddDbContext<HaloCommunityBotContext>(options => options.UseSqlite(connectionString));
+
         services.AddSingleton<DiscordBotService>();
         services.AddHostedService<HaloStatusMonitorService>();
+        services.AddHostedService<YoutubeMonitorService>();
 
         return services;
     }

@@ -1,9 +1,11 @@
 ﻿using DiscordBot.Extensions;
 using DiscordBot.Services;
+using DiscordBot.Core.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
 
@@ -47,6 +49,12 @@ try
                     logging.AddSerilog();
                 })
                 .Build();
+
+    using (var scope = host.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<HaloCommunityBotContext>();
+        await db.Database.EnsureCreatedAsync();
+    }
 
     var botService = host.Services.GetRequiredService<DiscordBotService>();
 
