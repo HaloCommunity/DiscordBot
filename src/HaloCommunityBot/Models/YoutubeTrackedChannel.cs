@@ -10,6 +10,12 @@ public class YoutubeTrackedChannel
 
     public string? PostTitleTemplate { get; set; }
 
+    /// <summary>
+    /// Semicolon-separated list of keywords to filter videos by title (case-insensitive).
+    /// If provided, only videos with titles containing at least one keyword will be posted.
+    /// </summary>
+    public string? KeywordFilters { get; set; }
+
     public bool IsEnabled { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

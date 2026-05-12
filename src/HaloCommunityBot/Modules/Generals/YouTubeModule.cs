@@ -85,21 +85,28 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand("add-channel", "Track a YouTube channel")]
     public async Task AddChannelAsync(
-        [Summary("channel", "YouTube channel ID or feed URL")] string channelReference,
-        [Summary("name", "Optional display name and forum tag source")] string? displayName = null,
-        [Summary("template", "Optional title template for this channel")] string? titleTemplate = null)
+        [Summary("channel", "YouTube channel ID, @handle, or feed URL")] string channelReference,
+        [Summary("name", "Optional display name for forum tags")] string? displayName = null,
+        [Summary("template", "Optional title template for this channel")] string? titleTemplate = null,
+        [Summary("keywords", "Optional semicolon-separated keywords to filter videos (e.g., 'Halo;Campaign')")] string? keywords = null)
     {
         await DeferAsync(ephemeral: true);
 
         if (!YoutubeChannelReferenceParser.TryNormalize(channelReference, out var channelId) || string.IsNullOrWhiteSpace(channelId))
         {
-            await FollowupAsync("❌ Provide a valid YouTube channel ID or channel feed URL.");
+            await FollowupAsync("❌ Provide a valid YouTube channel ID, @handle, or channel feed URL.");
             return;
         }
 
         var normalizedName = string.IsNullOrWhiteSpace(displayName)
             ? channelId
             : displayName.Trim();
+
+        var normalizedKeywords = string.IsNullOrWhiteSpace(keywords)
+            ? null
+            : string.Join(";", keywords.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim())
+                .Where(k => !string.IsNullOrEmpty(k)));
 
         var existing = await _db.YoutubeTrackedChannels.FirstOrDefaultAsync(x => x.ChannelId == channelId);
         if (existing == null)
@@ -109,6 +116,7 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
                 ChannelId = channelId,
                 ChannelName = normalizedName,
                 PostTitleTemplate = string.IsNullOrWhiteSpace(titleTemplate) ? null : titleTemplate.Trim(),
+                KeywordFilters = normalizedKeywords,
                 IsEnabled = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -119,13 +127,15 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
         {
             existing.ChannelName = normalizedName;
             existing.PostTitleTemplate = string.IsNullOrWhiteSpace(titleTemplate) ? existing.PostTitleTemplate : titleTemplate.Trim();
+            existing.KeywordFilters = normalizedKeywords;
             existing.IsEnabled = true;
             existing.UpdatedAt = DateTime.UtcNow;
         }
 
         await _db.SaveChangesAsync();
 
-        await FollowupAsync($"✅ Tracking YouTube channel `{channelId}` as `{normalizedName}`.");
+        var keywordInfo = normalizedKeywords != null ? $" with keywords: `{normalizedKeywords}`" : "";
+        await FollowupAsync($"✅ Tracking YouTube channel `{channelId}` as `{normalizedName}`{keywordInfo}.");
     }
 
     [SlashCommand("remove-channel", "Stop tracking a YouTube channel")]
@@ -178,7 +188,8 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
             {
                 var template = channel.PostTitleTemplate ?? settings.DefaultPostTitleTemplate;
                 var status = channel.IsEnabled ? "Enabled" : "Disabled";
-                return $"• `{channel.ChannelName}` (`{channel.ChannelId}`) - {status} - Template: `{template}`";
+                var filters = string.IsNullOrWhiteSpace(channel.KeywordFilters) ? "None" : channel.KeywordFilters;
+                return $"• `{channel.ChannelName}` (`{channel.ChannelId}`) - {status}\n  Template: `{template}` | Keywords: `{filters}`";
             });
 
             embed.AddField("Tracked channels", string.Join("\n", lines), false);

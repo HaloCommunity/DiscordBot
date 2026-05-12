@@ -138,11 +138,16 @@ public class YoutubeMonitorService : BackgroundService
         {
             foreach (var channel in _config.YoutubeMonitor.Channels.Where(c => !string.IsNullOrWhiteSpace(c.ChannelId)))
             {
+                var keywords = channel.KeywordFilters?.Count > 0
+                    ? string.Join(";", channel.KeywordFilters.Select(k => k.Trim()))
+                    : null;
+
                 db.YoutubeTrackedChannels.Add(new YoutubeTrackedChannel
                 {
                     ChannelId = channel.ChannelId.Trim(),
                     ChannelName = string.IsNullOrWhiteSpace(channel.ChannelName) ? channel.ChannelId.Trim() : channel.ChannelName.Trim(),
                     PostTitleTemplate = string.IsNullOrWhiteSpace(channel.PostTitleTemplate) ? null : channel.PostTitleTemplate.Trim(),
+                    KeywordFilters = keywords,
                     IsEnabled = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -197,7 +202,7 @@ public class YoutubeMonitorService : BackgroundService
             return;
         }
 
-        var pendingVideos = GetPendingVideos(feed.Videos, state);
+        var pendingVideos = GetPendingVideos(feed.Videos, state, youtubeChannel.KeywordFilters);
         if (pendingVideos.Count == 0)
         {
             state.LastCheckedAt = DateTime.UtcNow;
@@ -237,8 +242,10 @@ public class YoutubeMonitorService : BackgroundService
         }
     }
 
-    private static List<YouTubeVideoEntry> GetPendingVideos(IReadOnlyList<YouTubeVideoEntry> videos, FeedPostState state)
+    private static List<YouTubeVideoEntry> GetPendingVideos(IReadOnlyList<YouTubeVideoEntry> videos, FeedPostState state, string? keywordFilters = null)
     {
+        var pending = new List<YouTubeVideoEntry>();
+        
         if (!string.IsNullOrWhiteSpace(state.LastPostedItemId))
         {
             var lastPostedIndex = videos
@@ -248,19 +255,36 @@ public class YoutubeMonitorService : BackgroundService
 
             if (lastPostedIndex.HasValue)
             {
-                return videos.Take(lastPostedIndex.Value).Reverse().ToList();
+                pending = videos.Take(lastPostedIndex.Value).Reverse().ToList();
             }
         }
-
-        if (state.LastCheckedAt.HasValue)
+        else if (state.LastCheckedAt.HasValue)
         {
-            return videos
+            pending = videos
                 .Where(video => video.PublishedAt > state.LastCheckedAt.Value)
                 .Reverse()
                 .ToList();
         }
 
-        return new List<YouTubeVideoEntry>();
+        // Apply keyword filters if configured
+        if (!string.IsNullOrWhiteSpace(keywordFilters))
+        {
+            var keywords = keywordFilters
+                .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim())
+                .Where(k => !string.IsNullOrEmpty(k))
+                .ToList();
+
+            if (keywords.Count > 0)
+            {
+                pending = pending
+                    .Where(video => keywords.Any(keyword => 
+                        video.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+            }
+        }
+
+        return pending;
     }
 
     private async Task<ForumTag?> EnsureForumTagAsync(IForumChannel forumChannel, string tagName)

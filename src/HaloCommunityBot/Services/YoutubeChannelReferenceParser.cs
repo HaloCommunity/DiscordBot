@@ -2,6 +2,10 @@ namespace DiscordBot.Services;
 
 public static class YoutubeChannelReferenceParser
 {
+    /// <summary>
+    /// Normalizes a YouTube channel reference to a channel ID.
+    /// Supports: UCxxxxxx (ID), @handle (handle), URL, or channel name.
+    /// </summary>
     public static bool TryNormalize(string input, out string channelId)
     {
         channelId = string.Empty;
@@ -13,6 +17,14 @@ public static class YoutubeChannelReferenceParser
 
         var trimmed = input.Trim();
 
+        // Handle @mention format
+        if (trimmed.StartsWith("@"))
+        {
+            channelId = trimmed.Substring(1).Trim();
+            return !string.IsNullOrWhiteSpace(channelId);
+        }
+
+        // Handle URLs
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
         {
             var queryParts = uri.Query.TrimStart('?')
@@ -35,6 +47,7 @@ public static class YoutubeChannelReferenceParser
             }
         }
 
+        // Treat as ID or handle
         channelId = trimmed;
         return true;
     }
