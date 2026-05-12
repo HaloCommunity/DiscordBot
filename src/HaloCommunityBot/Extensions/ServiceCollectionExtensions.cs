@@ -20,7 +20,37 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddDiscordBot(this IServiceCollection services, IConfiguration configuration)
     {
-        var botConfig = configuration.GetSection("Bot").Get<BotConfig>() ?? new BotConfig();
+        var botSection = configuration.GetSection("Bot");
+        BotConfig botConfig;
+        try
+        {
+            botConfig = botSection.Get<BotConfig>() ?? new BotConfig();
+        }
+        catch (Exception ex)
+        {
+            // Include only non-sensitive values to help diagnose invalid env var bindings.
+            var diagnostics = string.Join(
+                ", ",
+                [
+                    $"Bot:GuildId='{botSection["GuildId"] ?? "<null>"}'",
+                    $"Bot:StatusMonitor:Enabled='{botSection["StatusMonitor:Enabled"] ?? "<null>"}'",
+                    $"Bot:StatusMonitor:ChannelId='{botSection["StatusMonitor:ChannelId"] ?? "<null>"}'",
+                    $"Bot:StatusMonitor:RoleId='{botSection["StatusMonitor:RoleId"] ?? "<null>"}'",
+                    $"Bot:StatusMonitor:PollIntervalMinutes='{botSection["StatusMonitor:PollIntervalMinutes"] ?? "<null>"}'",
+                    $"Bot:YoutubeMonitor:Enabled='{botSection["YoutubeMonitor:Enabled"] ?? "<null>"}'",
+                    $"Bot:YoutubeMonitor:ForumChannelId='{botSection["YoutubeMonitor:ForumChannelId"] ?? "<null>"}'",
+                    $"Bot:YoutubeMonitor:PollIntervalMinutes='{botSection["YoutubeMonitor:PollIntervalMinutes"] ?? "<null>"}'",
+                    $"Bot:Heartbeat:Enabled='{botSection["Heartbeat:Enabled"] ?? "<null>"}'",
+                    $"Bot:Heartbeat:IntervalSeconds='{botSection["Heartbeat:IntervalSeconds"] ?? "<null>"}'",
+                    $"Bot:Heartbeat:StartupDelaySeconds='{botSection["Heartbeat:StartupDelaySeconds"] ?? "<null>"}'",
+                    $"Bot:Heartbeat:TimeoutSeconds='{botSection["Heartbeat:TimeoutSeconds"] ?? "<null>"}'"
+                ]);
+
+            throw new InvalidOperationException(
+                $"Failed to bind 'Bot' configuration. Check numeric/boolean environment values. {diagnostics}",
+                ex);
+        }
+
         services.AddSingleton(botConfig);
 
         var socketConfig = new DiscordSocketConfig
