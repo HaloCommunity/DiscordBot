@@ -11,6 +11,25 @@ public class YoutubeMonitorConfig
     public string DefaultPostTitleTemplate { get; set; } = "[{ChannelName}] {VideoTitle}";
 
     public List<YoutubeChannelConfig> Channels { get; set; } = new();
+
+    /// <summary>
+    /// Validates the YouTube monitor configuration.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when validation fails.</exception>
+    public void Validate()
+    {
+        if (Enabled)
+        {
+            if (ForumChannelId == 0)
+                throw new InvalidOperationException("YoutubeMonitorConfig: When enabled, ForumChannelId must be a valid Discord forum channel ID (non-zero). Current value: 0. Check HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId environment variable. Must be a single channel ID, not 'guildId/channelId'.");
+
+            if (string.IsNullOrWhiteSpace(DefaultPostTitleTemplate))
+                throw new InvalidOperationException("YoutubeMonitorConfig: DefaultPostTitleTemplate cannot be empty.");
+
+            if (PollIntervalMinutes <= 0)
+                throw new InvalidOperationException($"YoutubeMonitorConfig: PollIntervalMinutes must be greater than 0. Current value: {PollIntervalMinutes}.");
+        }
+    }
 }
 
 public class YoutubeChannelConfig

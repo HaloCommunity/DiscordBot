@@ -26,4 +26,23 @@ public class StatusMonitorConfig
     /// How often (in minutes) to poll the feed. Defaults to 5.
     /// </summary>
     public int PollIntervalMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Validates the status monitor configuration.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when validation fails.</exception>
+    public void Validate()
+    {
+        if (Enabled)
+        {
+            if (ChannelId == 0)
+                throw new InvalidOperationException("StatusMonitorConfig: When enabled, ChannelId must be a valid Discord channel ID (non-zero). Current value: 0. Check HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId environment variable.");
+
+            if (string.IsNullOrWhiteSpace(FeedUrl) || !Uri.TryCreate(FeedUrl, UriKind.Absolute, out _))
+                throw new InvalidOperationException($"StatusMonitorConfig: FeedUrl must be a valid URL. Current value: '{FeedUrl}'.");
+
+            if (PollIntervalMinutes <= 0)
+                throw new InvalidOperationException($"StatusMonitorConfig: PollIntervalMinutes must be greater than 0. Current value: {PollIntervalMinutes}.");
+        }
+    }
 }
