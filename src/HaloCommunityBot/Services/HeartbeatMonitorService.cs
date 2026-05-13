@@ -36,37 +36,78 @@ public class HeartbeatMonitorService : BackgroundService
         var interval = TimeSpan.FromSeconds(Math.Max(15, heartbeat.IntervalSeconds));
         var startupDelay = TimeSpan.FromSeconds(Math.Max(0, heartbeat.StartupDelaySeconds));
 
+        _logger.LogInformation("Heartbeat monitor started. Pinging every {IntervalSeconds}s.", interval.TotalSeconds);
+
+        await PushHeartbeatAsync(stoppingToken, "startup");
+
         if (startupDelay > TimeSpan.Zero)
         {
+            _logger.LogInformation("Waiting {StartupDelaySeconds}s startup delay before regular heartbeat loop.", startupDelay.TotalSeconds);
             await Task.Delay(startupDelay, stoppingToken);
         }
 
-        _logger.LogInformation("Heartbeat monitor started. Pinging every {IntervalSeconds}s.", interval.TotalSeconds);
-
         while (!stoppingToken.IsCancellationRequested)
+        {
+            await Task.Delay(interval, stoppingToken);
+
+            if (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            await PushHeartbeatAsync(stoppingToken, "interval");
+        }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        var heartbeat = _botConfig.Heartbeat;
+        if (heartbeat.Enabled && !string.IsNullOrWhiteSpace(heartbeat.PushUrl))
         {
             try
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(2, heartbeat.TimeoutSeconds)));
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeout.Token);
-
-                using var response = await _httpClient.GetAsync(heartbeat.PushUrl, linked.Token);
-
-                if (!response.IsSuccessStatusCode)
+                using var response = await _httpClient.GetAsync(heartbeat.PushUrl, timeout.Token);
+                if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("Heartbeat push failed with status code {StatusCode}.", (int)response.StatusCode);
+                    _logger.LogInformation("Sent final heartbeat ping during shutdown.");
                 }
-            }
-            catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
-            {
-                _logger.LogWarning("Heartbeat push timed out after {TimeoutSeconds}s.", Math.Max(2, heartbeat.TimeoutSeconds));
+                else
+                {
+                    _logger.LogWarning("Final shutdown heartbeat push failed with status code {StatusCode}.", (int)response.StatusCode);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Heartbeat push failed.");
+                _logger.LogWarning(ex, "Failed to send final heartbeat ping during shutdown.");
             }
+        }
 
-            await Task.Delay(interval, stoppingToken);
+        await base.StopAsync(cancellationToken);
+    }
+
+    private async Task PushHeartbeatAsync(CancellationToken stoppingToken, string phase)
+    {
+        var heartbeat = _botConfig.Heartbeat;
+
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(2, heartbeat.TimeoutSeconds)));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeout.Token);
+            using var response = await _httpClient.GetAsync(heartbeat.PushUrl, linked.Token);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Heartbeat push failed with status code {StatusCode} during {Phase} phase.", (int)response.StatusCode, phase);
+            }
+        }
+        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("Heartbeat push timed out after {TimeoutSeconds}s during {Phase} phase.", Math.Max(2, heartbeat.TimeoutSeconds), phase);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Heartbeat push failed during {Phase} phase.", phase);
         }
     }
 }
