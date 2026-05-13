@@ -102,14 +102,16 @@ public class DiscordBotService
     /// </summary>
     private Task LogAsync(LogMessage log)
     {
-        var isGateway = string.Equals(log.Source, "Gateway", StringComparison.OrdinalIgnoreCase);
-        var isNullLikeMessage = string.IsNullOrWhiteSpace(log.Message) || string.Equals(log.Message, "null", StringComparison.OrdinalIgnoreCase);
+        var isGateway = !string.IsNullOrWhiteSpace(log.Source) &&
+                        log.Source.Contains("Gateway", StringComparison.OrdinalIgnoreCase);
+        var isNullLikeMessage = string.IsNullOrWhiteSpace(log.Message) ||
+                                string.Equals(log.Message, "null", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(log.Message, "(empty message)", StringComparison.OrdinalIgnoreCase);
 
         // Discord gateway can emit null/empty messages with error severity during reconnects.
-        // Treat these as debug noise when there is no exception attached.
+        // Drop these noisy events when there is no exception attached.
         if (isGateway && isNullLikeMessage && log.Exception is null)
         {
-            _logger.LogDebug("Discord gateway emitted an empty message with severity {Severity}; ignoring noisy event.", log.Severity);
             return Task.CompletedTask;
         }
 
