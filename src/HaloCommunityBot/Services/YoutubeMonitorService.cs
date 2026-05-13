@@ -108,6 +108,16 @@ public class YoutubeMonitorService : BackgroundService
                 continue;
             }
 
+            // Reject placeholder/invalid UC IDs so they do not spam feed polling warnings.
+            if (normalizedReference.StartsWith("UC", StringComparison.OrdinalIgnoreCase) &&
+                !LooksLikeYoutubeChannelId(normalizedReference))
+            {
+                trackedChannel.IsEnabled = false;
+                trackedChannel.UpdatedAt = DateTime.UtcNow;
+                invalidChannels.Add(trackedChannel.ChannelId);
+                continue;
+            }
+
             if (!string.Equals(trackedChannel.ChannelId, normalizedReference, StringComparison.Ordinal))
             {
                 trackedChannel.ChannelId = normalizedReference;
