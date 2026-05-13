@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Discord;
 using Discord.WebSocket;
@@ -327,30 +328,186 @@ public class YoutubeMonitorService : BackgroundService
         return trimmed.Length <= 20 ? trimmed : trimmed[..20].Trim();
     }
 
-    private async Task<YouTubeFeed?> LoadFeedAsync(string channelId, CancellationToken cancellationToken)
+    private async Task<YouTubeFeed?> LoadFeedAsync(string channelReference, CancellationToken cancellationToken)
     {
+        var normalizedReference = channelReference.Trim();
+        var feedUrls = new List<string>();
+        var attemptFailures = new List<string>();
+
         try
         {
-            var url = $"https://www.youtube.com/feeds/videos.xml?channel_id={Uri.EscapeDataString(channelId)}";
-            var xml = await _httpClient.GetStringAsync(url, cancellationToken);
-            var doc = XDocument.Parse(xml);
+            // Allow direct feed URLs.
+            if (Uri.TryCreate(normalizedReference, UriKind.Absolute, out var parsedUri) &&
+                parsedUri.Host.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) &&
+                parsedUri.AbsolutePath.Contains("/feeds/videos.xml", StringComparison.OrdinalIgnoreCase))
+            {
+                feedUrls.Add(parsedUri.ToString());
+            }
 
-            var authorElement = doc.Root?.Element(AtomNamespace + "author");
-            var channelName = authorElement?.Element(AtomNamespace + "name")?.Value?.Trim()
-                ?? doc.Root?.Element(AtomNamespace + "title")?.Value?.Trim()
-                ?? channelId;
+            // channel/<UC...> URL support.
+            if (TryExtractChannelIdFromUrl(normalizedReference, out var extractedChannelId))
+            {
+                feedUrls.Add(BuildChannelFeedUrl(extractedChannelId));
+            }
 
-            var videos = doc.Descendants(AtomNamespace + "entry")
-                .Select(ParseVideoEntry)
-                .Where(video => video != null)
-                .Select(video => video!)
-                .ToList();
+            // Direct UC channel id support.
+            if (LooksLikeYoutubeChannelId(normalizedReference))
+            {
+                feedUrls.Add(BuildChannelFeedUrl(normalizedReference));
+            }
 
-            return new YouTubeFeed(channelName, videos);
+            // Handle/user support (for records created with /youtube add-channel @handle or plain handle).
+            var handleOrUser = normalizedReference.TrimStart('@');
+            if (!string.IsNullOrWhiteSpace(handleOrUser) && !LooksLikeYoutubeChannelId(handleOrUser))
+            {
+                var resolvedChannelId = await TryResolveChannelIdFromHandleAsync(handleOrUser, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(resolvedChannelId))
+                {
+                    feedUrls.Add(BuildChannelFeedUrl(resolvedChannelId));
+                }
+
+                // Legacy username feed fallback.
+                feedUrls.Add($"https://www.youtube.com/feeds/videos.xml?user={Uri.EscapeDataString(handleOrUser)}");
+
+                // Some existing records store non-UC values in ChannelId, keep this fallback for compatibility.
+                feedUrls.Add(BuildChannelFeedUrl(handleOrUser));
+            }
+
+            // Final fallback for any remaining input.
+            if (feedUrls.Count == 0)
+            {
+                feedUrls.Add(BuildChannelFeedUrl(normalizedReference));
+            }
+
+            foreach (var url in feedUrls.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using var response = await _httpClient.GetAsync(url, cancellationToken);
+                    var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        attemptFailures.Add($"{url} => HTTP {(int)response.StatusCode}");
+                        continue;
+                    }
+
+                    if (!LooksLikeXml(payload))
+                    {
+                        attemptFailures.Add($"{url} => non-XML response");
+                        continue;
+                    }
+
+                    var doc = XDocument.Parse(payload);
+
+                    var authorElement = doc.Root?.Element(AtomNamespace + "author");
+                    var channelName = authorElement?.Element(AtomNamespace + "name")?.Value?.Trim()
+                        ?? doc.Root?.Element(AtomNamespace + "title")?.Value?.Trim()
+                        ?? normalizedReference;
+
+                    var videos = doc.Descendants(AtomNamespace + "entry")
+                        .Select(ParseVideoEntry)
+                        .Where(video => video != null)
+                        .Select(video => video!)
+                        .ToList();
+
+                    return new YouTubeFeed(channelName, videos);
+                }
+                catch (Exception ex)
+                {
+                    attemptFailures.Add($"{url} => {ex.GetType().Name}: {ex.Message}");
+                }
+            }
+
+            var attemptsSummary = attemptFailures.Count == 0
+                ? "(no attempts)"
+                : string.Join(" | ", attemptFailures.Take(5));
+
+            _logger.LogWarning("Failed to load YouTube feed for channel {ChannelReference}. Attempts: {AttemptsSummary}", normalizedReference, attemptsSummary);
+            return null;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load YouTube feed for channel {ChannelId}.", channelId);
+            _logger.LogWarning(ex, "Failed to load YouTube feed for channel {ChannelReference}.", normalizedReference);
+            return null;
+        }
+    }
+
+    private static bool LooksLikeYoutubeChannelId(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("UC", StringComparison.OrdinalIgnoreCase) && trimmed.Length >= 20;
+    }
+
+    private static string BuildChannelFeedUrl(string channelIdOrReference)
+    {
+        return $"https://www.youtube.com/feeds/videos.xml?channel_id={Uri.EscapeDataString(channelIdOrReference.Trim())}";
+    }
+
+    private static bool LooksLikeXml(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return false;
+        }
+
+        var trimmed = payload.TrimStart();
+        return trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("<feed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryExtractChannelIdFromUrl(string input, out string channelId)
+    {
+        channelId = string.Empty;
+
+        if (!Uri.TryCreate(input, UriKind.Absolute, out var uri) ||
+            !uri.Host.Contains("youtube.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length >= 2 && segments[0].Equals("channel", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(segments[1]))
+        {
+            channelId = segments[1].Trim();
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<string?> TryResolveChannelIdFromHandleAsync(string handleOrUser, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var handle = handleOrUser.TrimStart('@').Trim();
+            if (string.IsNullOrWhiteSpace(handle))
+            {
+                return null;
+            }
+
+            var profileUrl = $"https://www.youtube.com/@{Uri.EscapeDataString(handle)}";
+            using var response = await _httpClient.GetAsync(profileUrl, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(html))
+            {
+                return null;
+            }
+
+            var match = Regex.Match(html, "\"externalId\":\"(?<id>UC[0-9A-Za-z_-]{20,})\"", RegexOptions.IgnoreCase);
+            if (!match.Success)
+            {
+                match = Regex.Match(html, "\"channelId\":\"(?<id>UC[0-9A-Za-z_-]{20,})\"", RegexOptions.IgnoreCase);
+            }
+
+            return match.Success ? match.Groups["id"].Value : null;
+        }
+        catch
+        {
             return null;
         }
     }
