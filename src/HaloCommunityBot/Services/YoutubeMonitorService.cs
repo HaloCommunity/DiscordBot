@@ -223,6 +223,11 @@ public class YoutubeMonitorService : BackgroundService
         var feed = await LoadFeedAsync(youtubeChannel.ChannelId, cancellationToken);
         if (feed == null)
         {
+            _logger.LogWarning(
+                "Skipping tracked YouTube channel due to feed load failure. DbId={DbId}, ChannelId={ChannelId}, ChannelName={ChannelName}",
+                youtubeChannel.Id,
+                youtubeChannel.ChannelId,
+                youtubeChannel.ChannelName ?? "(null)");
             return;
         }
 
