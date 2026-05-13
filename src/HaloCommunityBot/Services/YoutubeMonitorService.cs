@@ -82,7 +82,7 @@ public class YoutubeMonitorService : BackgroundService
             return;
         }
 
-        var channels = await db.YoutubeTrackedChannels.AsNoTracking()
+        var channels = await db.YoutubeTrackedChannels
             .Where(x => x.IsEnabled)
             .OrderBy(x => x.ChannelName)
             .ToListAsync(cancellationToken);
@@ -93,7 +93,51 @@ public class YoutubeMonitorService : BackgroundService
             return;
         }
 
-        _logger.LogInformation("YouTube monitor started. Polling {Count} channel(s) every {Interval} minute(s).", channels.Count, settings.PollIntervalMinutes);
+        var normalizedChannels = new List<YoutubeTrackedChannel>(channels.Count);
+        var invalidChannels = new List<string>();
+        var normalizedUpdated = 0;
+
+        foreach (var trackedChannel in channels)
+        {
+            if (!YoutubeChannelReferenceParser.TryNormalize(trackedChannel.ChannelId, out var normalizedReference) ||
+                string.IsNullOrWhiteSpace(normalizedReference))
+            {
+                trackedChannel.IsEnabled = false;
+                trackedChannel.UpdatedAt = DateTime.UtcNow;
+                invalidChannels.Add(trackedChannel.ChannelId);
+                continue;
+            }
+
+            if (!string.Equals(trackedChannel.ChannelId, normalizedReference, StringComparison.Ordinal))
+            {
+                trackedChannel.ChannelId = normalizedReference;
+                trackedChannel.UpdatedAt = DateTime.UtcNow;
+                normalizedUpdated++;
+            }
+
+            normalizedChannels.Add(trackedChannel);
+        }
+
+        if (invalidChannels.Count > 0 || normalizedUpdated > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        if (invalidChannels.Count > 0)
+        {
+            _logger.LogWarning(
+                "YouTube monitor disabled {InvalidCount} invalid tracked channel(s): {Channels}",
+                invalidChannels.Count,
+                string.Join(", ", invalidChannels));
+        }
+
+        if (normalizedChannels.Count == 0)
+        {
+            _logger.LogInformation("YouTube monitor has no valid tracked channels configured — skipping.");
+            return;
+        }
+
+        _logger.LogInformation("YouTube monitor started. Polling {Count} valid channel(s) every {Interval} minute(s).", normalizedChannels.Count, settings.PollIntervalMinutes);
 
         if (_client.GetChannel(settings.ForumChannelId) is not IForumChannel forumChannel)
         {
@@ -101,7 +145,7 @@ public class YoutubeMonitorService : BackgroundService
             return;
         }
 
-        foreach (var youtubeChannel in channels.Where(c => !string.IsNullOrWhiteSpace(c.ChannelId)))
+        foreach (var youtubeChannel in normalizedChannels)
         {
             await PollChannelAsync(db, forumChannel, settings, youtubeChannel, cancellationToken);
         }
