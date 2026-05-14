@@ -100,6 +100,16 @@ jobs:
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
           "sudo -n mv /tmp/halocommunitybot.service /etc/systemd/system/halocommunitybot.service && sudo -n systemctl daemon-reload"
 
+    - name: Deploy journald retention policy
+      run: |
+        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/journald-bot-limits.conf ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/journald-bot-limits.conf
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          "sudo -n mkdir -p /etc/systemd/journald.conf.d && \
+           sudo -n mv /tmp/journald-bot-limits.conf /etc/systemd/journald.conf.d/60-bot-limits.conf && \
+           sudo -n systemctl restart systemd-journald && \
+           sudo -n journalctl --rotate && \
+           sudo -n journalctl --vacuum-time=14d --vacuum-size=500M"
+
     - name: Write .env file from secrets
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
