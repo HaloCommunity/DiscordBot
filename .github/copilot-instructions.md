@@ -6,7 +6,9 @@ Essential guidelines for AI code generation on this project.
 
 Never manually edit `src/HaloCommunityBot/HaloCommunityBot.csproj` version or `CHANGELOG.md` version entries.
 
-For every code change (feature, fix, refactor, docs, or chore), run the VersionManager workflow so `CHANGELOG.md` and project version stay current. Do not leave changes without a VersionManager-generated changelog entry.
+Run the VersionManager workflow when changes affect shipped bot runtime behavior (for example, code under `src/HaloCommunityBot/`, runtime configuration behavior, commands, services, or user-visible functionality).
+
+Do not require a version bump for workflow/CI-only, deployment-only, docs-only, tests-only, or tooling-only changes that do not change bot runtime behavior.
 
 Always use the VersionManager tool. Build it before use:
 
@@ -63,7 +65,7 @@ Critical startup phases should log entry and exit.
 ## Quick Checklist Before Commit
 
 * \[ ] Code compiles with `dotnet build`
-* \[ ] Version bumped with VersionManager for this change
-* \[ ] `CHANGELOG.md` updated via VersionManager
+* \[ ] Version bumped with VersionManager (required only for runtime behavior changes)
+* \[ ] `CHANGELOG.md` updated via VersionManager (required only for runtime behavior changes)
 * \[ ] Conventional Commit message used
 * \[ ] No manual version edits
