@@ -102,15 +102,9 @@ public class DiscordBotService
     /// </summary>
     private Task LogAsync(LogMessage log)
     {
-        var isGateway = !string.IsNullOrWhiteSpace(log.Source) &&
-                        log.Source.Contains("Gateway", StringComparison.OrdinalIgnoreCase);
-        var isNullLikeMessage = string.IsNullOrWhiteSpace(log.Message) ||
-                                string.Equals(log.Message, "null", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(log.Message, "(empty message)", StringComparison.OrdinalIgnoreCase);
-
-        // Discord gateway can emit null/empty messages with error severity during reconnects.
-        // Drop these noisy events when there is no exception attached.
-        if (isGateway && isNullLikeMessage && log.Exception is null)
+        // Discord.Net can emit placeholder gateway warnings during reconnects and handshake churn.
+        // These are not actionable and only add noise to the bot logs.
+        if (ShouldSuppressGatewayNoise(log))
         {
             return Task.CompletedTask;
         }
@@ -127,8 +121,25 @@ public class DiscordBotService
         };
 
         var message = string.IsNullOrWhiteSpace(log.Message) ? "(empty message)" : log.Message;
-        _logger.Log(logLevel, log.Exception, "{Source}: {Message}", log.Source, message);
+        _logger.Log(logLevel, log.Exception, "[{BotName}] {Source}: {Message}", "HaloCommunityBot", log.Source, message);
         return Task.CompletedTask;
+    }
+
+    private static bool ShouldSuppressGatewayNoise(LogMessage log)
+    {
+        if (string.IsNullOrWhiteSpace(log.Source) ||
+            !log.Source.Contains("Gateway", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var message = log.Message?.Trim();
+        return string.IsNullOrWhiteSpace(message) ||
+               string.Equals(message, "null", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(message, "(empty message)", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(message, "(null)", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(message, "<null>", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(message, "[null]", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
