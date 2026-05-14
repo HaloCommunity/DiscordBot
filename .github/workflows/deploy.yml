@@ -62,7 +62,8 @@ jobs:
     
     - name: Deploy files
       run: |
-        rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+        # Preserve runtime SQLite files that live in the deployment directory.
+        rsync -avz --delete --exclude='*.db' --exclude='*.db-shm' --exclude='*.db-wal' -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
           ./publish/ ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
 
     - name: Write .env file from secrets
