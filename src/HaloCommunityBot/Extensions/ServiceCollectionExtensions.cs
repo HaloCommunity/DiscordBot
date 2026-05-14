@@ -83,8 +83,14 @@ public static class ServiceCollectionExtensions
 
         var socketConfig = new DiscordSocketConfig
         {
-            AlwaysDownloadUsers = true,
-            GatewayIntents = GatewayIntents.All,
+            // Request only non-privileged intents by default to avoid gateway close 4014.
+            // This keeps slash-command bot startup resilient even when privileged intents
+            // are not enabled in the Discord developer portal.
+            AlwaysDownloadUsers = false,
+            GatewayIntents = GatewayIntents.Guilds |
+                             GatewayIntents.GuildMessages |
+                             GatewayIntents.GuildMessageReactions |
+                             GatewayIntents.DirectMessages,
             LogLevel = LogSeverity.Info
         };
         services.AddSingleton(socketConfig);
