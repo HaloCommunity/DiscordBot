@@ -2,6 +2,10 @@
 
 Essential guidelines for AI code generation on this project.
 
+## Command Formatting
+
+When providing terminal commands to users, always wrap commands in fenced code blocks.
+
 ## CRITICAL: Version Management
 
 Never manually edit `src/HaloCommunityBot/HaloCommunityBot.csproj` version or `CHANGELOG.md` version entries.
