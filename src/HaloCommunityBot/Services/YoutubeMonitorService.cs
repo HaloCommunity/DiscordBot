@@ -331,7 +331,10 @@ public class YoutubeMonitorService : BackgroundService
         foreach (var video in pendingVideos)
         {
             var postTitle = BuildPostTitle(settings, youtubeChannel, channelName, video.Title);
-            var body = $"New video from **{channelName}**\n{video.Url}";
+            var mentionPrefix = _config.YoutubeMonitor.RoleId != 0
+                ? $"<@&{_config.YoutubeMonitor.RoleId}>\n"
+                : string.Empty;
+            var body = $"{mentionPrefix}New video from **{channelName}**\n{video.Url}";
 
             try
             {

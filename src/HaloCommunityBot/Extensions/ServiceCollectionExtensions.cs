@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
                     $"Bot:StatusMonitor:PollIntervalMinutes='{botSection["StatusMonitor:PollIntervalMinutes"] ?? "<null>"}'",
                     $"Bot:YoutubeMonitor:Enabled='{botSection["YoutubeMonitor:Enabled"] ?? "<null>"}'",
                     $"Bot:YoutubeMonitor:ForumChannelId='{botSection["YoutubeMonitor:ForumChannelId"] ?? "<null>"}'",
+                        $"Bot:YoutubeMonitor:RoleId='{botSection["YoutubeMonitor:RoleId"] ?? "<null>"}'",
                     $"Bot:YoutubeMonitor:PollIntervalMinutes='{botSection["YoutubeMonitor:PollIntervalMinutes"] ?? "<null>"}'",
                     $"Bot:Heartbeat:Enabled='{botSection["Heartbeat:Enabled"] ?? "<null>"}'",
                     $"Bot:Heartbeat:IntervalSeconds='{botSection["Heartbeat:IntervalSeconds"] ?? "<null>"}'",

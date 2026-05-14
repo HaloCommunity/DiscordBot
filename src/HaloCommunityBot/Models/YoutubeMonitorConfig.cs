@@ -6,6 +6,8 @@ public class YoutubeMonitorConfig
 
     public ulong ForumChannelId { get; set; }
 
+    public ulong RoleId { get; set; }
+
     public string? YouTubeDataApiKey { get; set; }
 
     public int PollIntervalMinutes { get; set; } = 15;

@@ -147,6 +147,7 @@ Set `YoutubeMonitor:Enabled` to `true` and configure:
 | Setting | Description |
 | --- | --- |
 | `ForumChannelId` | Discord forum channel ID where new video threads are created |
+| `RoleId` | Optional role to mention when a new video is posted (set `0` to disable mentions) |
 | `YouTubeDataApiKey` | Optional YouTube Data API key used to resolve plain channel names to channel IDs |
 | `PollIntervalMinutes` | Feed polling cadence (default: 15) |
 | `DefaultPostTitleTemplate` | Thread title template (supports `{ChannelName}` and `{VideoTitle}`) |
@@ -202,6 +203,7 @@ HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=1234567890
 HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=1234567890
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled=true
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId=1234567890
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RoleId=1234567890
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey=your-youtube-data-api-key
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes=15
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate=[{ChannelName}] {VideoTitle}
@@ -223,6 +225,7 @@ If you deploy with `.github/workflows/deploy.yml`, configure these repository se
 | `STATUS_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId` |
 | `YOUTUBE_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled` |
 | `YOUTUBE_FORUM_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId` |
+| `YOUTUBE_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RoleId` |
 | `YOUTUBE_DATA_API_KEY` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey` |
 | `YOUTUBE_POLL_INTERVAL_MINUTES` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes` |
 | `YOUTUBE_DEFAULT_POST_TITLE_TEMPLATE` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate` |
