@@ -47,8 +47,28 @@ jobs:
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+        KEY_SECRET_RAW="${{ secrets.DEPLOY_SSH_KEY }}"
+        KEY_SECRET_TRIMMED=$(printf '%s' "$KEY_SECRET_RAW" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+        case "$KEY_SECRET_TRIMMED" in
+          \"*\") KEY_SECRET_TRIMMED=${KEY_SECRET_TRIMMED#\"}; KEY_SECRET_TRIMMED=${KEY_SECRET_TRIMMED%\"} ;;
+          \'*\') KEY_SECRET_TRIMMED=${KEY_SECRET_TRIMMED#\'}; KEY_SECRET_TRIMMED=${KEY_SECRET_TRIMMED%\'} ;;
+        esac
+
+        if printf '%s' "$KEY_SECRET_TRIMMED" | grep -q "BEGIN .* PRIVATE KEY"; then
+          printf '%s' "$KEY_SECRET_TRIMMED" > ~/.ssh/deploy_key
+        elif printf '%s' "$KEY_SECRET_TRIMMED" | grep -q '\\n'; then
+          printf '%b' "$KEY_SECRET_TRIMMED" > ~/.ssh/deploy_key
+        elif printf '%s' "$KEY_SECRET_TRIMMED" | tr -d '\r\n\t ' | base64 -d > ~/.ssh/deploy_key 2>/dev/null; then
+          :
+        elif printf '%s' "$KEY_SECRET_TRIMMED" | tr -d '\r\n\t ' | tr '_-' '/+' | base64 -d > ~/.ssh/deploy_key 2>/dev/null; then
+          :
+        else
+          echo "Invalid DEPLOY_SSH_KEY format. Provide raw key, escaped \\n key, or base64 key."
+          exit 1
+        fi
+
         chmod 600 ~/.ssh/deploy_key
+        ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null
         ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
     - name: Preflight host permissions
