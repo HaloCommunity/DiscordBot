@@ -74,7 +74,7 @@ jobs:
     - name: Preflight host permissions
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo -n mkdir -p ${{ env.DEPLOY_PATH }} && sudo -n chown ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }} && test -w ${{ env.DEPLOY_PATH }}"
+          "sudo -n mkdir -p ${{ env.DEPLOY_PATH }} && sudo -n chown -R ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }} && test -w ${{ env.DEPLOY_PATH }}"
     
     - name: Stop bot service
       run: |
@@ -83,7 +83,7 @@ jobs:
     
     - name: Deploy files
       run: |
-        # Preserve runtime SQLite/log files and avoid group metadata updates on host-owned files.
+        # Preserve runtime SQLite/log files. Preflight recursively chowns to deployer for safe rsync with timestamps.
         rsync -avz --no-group --delete --exclude='*.db' --exclude='*.db-shm' --exclude='*.db-wal' --exclude='logs/' -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
           ./publish/ ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
 
