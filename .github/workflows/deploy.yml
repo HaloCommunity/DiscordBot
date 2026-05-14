@@ -54,16 +54,23 @@ jobs:
           \'*\') KEY_SECRET_TRIMMED=${KEY_SECRET_TRIMMED#\'}; KEY_SECRET_TRIMMED=${KEY_SECRET_TRIMMED%\'} ;;
         esac
 
-        if printf '%s' "$KEY_SECRET_TRIMMED" | grep -q "BEGIN .* PRIVATE KEY"; then
-          printf '%s' "$KEY_SECRET_TRIMMED" > ~/.ssh/deploy_key
-        elif printf '%s' "$KEY_SECRET_TRIMMED" | grep -q '\\n'; then
+        if printf '%s' "$KEY_SECRET_TRIMMED" | grep -q '\\n'; then
           printf '%b' "$KEY_SECRET_TRIMMED" > ~/.ssh/deploy_key
+        elif printf '%s' "$KEY_SECRET_TRIMMED" | grep -q "BEGIN .* PRIVATE KEY" && printf '%s' "$KEY_SECRET_TRIMMED" | grep -q $'\n'; then
+          printf '%s' "$KEY_SECRET_TRIMMED" > ~/.ssh/deploy_key
         elif printf '%s' "$KEY_SECRET_TRIMMED" | tr -d '\r\n\t ' | base64 -d > ~/.ssh/deploy_key 2>/dev/null; then
           :
         elif printf '%s' "$KEY_SECRET_TRIMMED" | tr -d '\r\n\t ' | tr '_-' '/+' | base64 -d > ~/.ssh/deploy_key 2>/dev/null; then
           :
         else
           echo "Invalid DEPLOY_SSH_KEY format. Provide raw key, escaped \\n key, or base64 key."
+          exit 1
+        fi
+
+        # Normalize potential CRLF and verify we decoded an actual private key (not .pub or wrong file).
+        sed -i 's/\r$//' ~/.ssh/deploy_key
+        if ! grep -q "BEGIN .* PRIVATE KEY" ~/.ssh/deploy_key; then
+          echo "DEPLOY_SSH_KEY decoded, but does not look like a private key. Ensure secret is base64 of the PRIVATE key file, not .pub."
           exit 1
         fi
 
