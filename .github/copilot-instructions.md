@@ -10,7 +10,7 @@ Run the VersionManager workflow when changes affect shipped bot runtime behavior
 
 Do not require a version bump for workflow/CI-only, deployment-only, docs-only, tests-only, or tooling-only changes that do not change bot runtime behavior.
 
-Always use the VersionManager tool. Build it before use:
+When a version bump is required, use the VersionManager tool. Build it before use:
 
 ```bash
 # Step 1: Build VersionManager as Release

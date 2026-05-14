@@ -3,12 +3,18 @@ name: .NET CI
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - 'src/**'
+      - 'tools/**'
+      - '.github/workflows/dotnet.yml'
+      - '!**/*.md'
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - 'src/**'
+      - 'tools/**'
+      - '.github/workflows/dotnet.yml'
+      - '!**/*.md'
 
 jobs:
   build:
