@@ -51,6 +51,30 @@ public static class ServiceCollectionExtensions
                 ex);
         }
 
+        // Backward-compatible token fallback for environments that only define common token keys.
+        if (string.IsNullOrWhiteSpace(botConfig.Token))
+        {
+            botConfig.Token =
+                configuration["DISCORD_TOKEN"] ??
+                configuration["BOT_TOKEN"] ??
+                string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(botConfig.Token))
+        {
+            var tokenSourceDiagnostics = string.Join(
+                ", ",
+                [
+                    $"Bot:Token set='{!string.IsNullOrWhiteSpace(botSection["Token"])}'",
+                    $"HALOCOMMUNITYBOT_Bot__Token set='{!string.IsNullOrWhiteSpace(configuration["HALOCOMMUNITYBOT_Bot__Token"])}'",
+                    $"DISCORD_TOKEN set='{!string.IsNullOrWhiteSpace(configuration["DISCORD_TOKEN"])}'",
+                    $"BOT_TOKEN set='{!string.IsNullOrWhiteSpace(configuration["BOT_TOKEN"])}'"
+                ]);
+
+            throw new InvalidOperationException(
+                $"Bot token is missing. Set HALOCOMMUNITYBOT_Bot__Token (preferred) or DISCORD_TOKEN/BOT_TOKEN. {tokenSourceDiagnostics}");
+        }
+
         // Validate bound configuration values
         botConfig.Validate();
 

@@ -90,8 +90,7 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
         [Summary("channel", "YouTube channel ID, @handle, or feed URL")] string channelReference,
         [Summary("name", "Optional display name for forum tags")] string? displayName = null,
         [Summary("template", "Optional title template for this channel")] string? titleTemplate = null,
-        [Summary("keywords", "Optional semicolon-separated keywords to filter videos (e.g., 'Halo;Campaign')")] string? keywords = null,
-        CancellationToken cancellationToken = default)
+        [Summary("keywords", "Optional semicolon-separated keywords to filter videos (e.g., 'Halo;Campaign')")] string? keywords = null)
     {
         await DeferAsync(ephemeral: true);
 
@@ -104,7 +103,7 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
         }
         else
         {
-            var searchResult = await _channelSearchService.SearchAsync(channelReference, cancellationToken);
+            var searchResult = await _channelSearchService.SearchAsync(channelReference, CancellationToken.None);
             if (searchResult == null)
             {
                 await FollowupAsync("❌ Provide a valid YouTube channel ID, @handle, channel feed URL, or a channel name that can be resolved with the YouTube Data API.");
