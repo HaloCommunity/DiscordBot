@@ -5,6 +5,24 @@ All notable changes to HaloCommunityBot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.27] - 2026-05-14
+
+### Changed
+
+* Resolve YouTube channel names through Data API search
+
+## [1.1.26] - 2026-05-14
+
+### Changed
+
+* Reject invalid YouTube references before polling feeds
+
+## [1.1.25] - 2026-05-14
+
+### Changed
+
+* Reduce YouTube feed failure skip logging noise
+
 ## [1.1.24] - 2026-05-14
 
 ### Changed

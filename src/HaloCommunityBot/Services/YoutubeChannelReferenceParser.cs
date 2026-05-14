@@ -4,7 +4,7 @@ public static class YoutubeChannelReferenceParser
 {
     /// <summary>
     /// Normalizes a YouTube channel reference to a channel ID.
-    /// Supports: UCxxxxxx (ID), @handle (handle), URL, or channel name.
+    /// Supports: UCxxxxxx (ID), @handle (handle), channel/feed URLs.
     /// </summary>
     public static bool TryNormalize(string input, out string channelId)
     {
@@ -39,16 +39,39 @@ public static class YoutubeChannelReferenceParser
                 return true;
             }
 
+            if (queryParts.TryGetValue("user", out var queryUser) && !string.IsNullOrWhiteSpace(queryUser))
+            {
+                channelId = $"@{queryUser.Trim()}";
+                return true;
+            }
+
             var pathSegments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (pathSegments.Length >= 2 && pathSegments[0].Equals("channel", StringComparison.OrdinalIgnoreCase))
             {
                 channelId = pathSegments[1];
                 return true;
             }
+
+            if (pathSegments.Length >= 1 && pathSegments[0].StartsWith("@", StringComparison.OrdinalIgnoreCase))
+            {
+                channelId = pathSegments[0];
+                return true;
+            }
+
+            if (uri.AbsolutePath.Contains("/feeds/videos.xml", StringComparison.OrdinalIgnoreCase))
+            {
+                channelId = trimmed;
+                return true;
+            }
         }
 
-        // Treat as ID or handle
-        channelId = trimmed;
-        return true;
+        // Treat only canonical raw IDs/handles as valid. Bare names are not accepted.
+        if (trimmed.StartsWith("UC", StringComparison.OrdinalIgnoreCase) && trimmed.Length >= 20)
+        {
+            channelId = trimmed;
+            return true;
+        }
+
+        return false;
     }
 }

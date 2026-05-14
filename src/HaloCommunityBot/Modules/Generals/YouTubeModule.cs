@@ -13,10 +13,12 @@ namespace DiscordBot.Modules.Generals;
 public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
 {
     private readonly HaloCommunityBotContext _db;
+    private readonly YoutubeChannelSearchService _channelSearchService;
 
-    public YouTubeModule(HaloCommunityBotContext db)
+    public YouTubeModule(HaloCommunityBotContext db, YoutubeChannelSearchService channelSearchService)
     {
         _db = db;
+        _channelSearchService = channelSearchService;
     }
 
     [SlashCommand("set-forum-channel", "Set the forum channel used for YouTube posts")]
@@ -88,18 +90,39 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
         [Summary("channel", "YouTube channel ID, @handle, or feed URL")] string channelReference,
         [Summary("name", "Optional display name for forum tags")] string? displayName = null,
         [Summary("template", "Optional title template for this channel")] string? titleTemplate = null,
-        [Summary("keywords", "Optional semicolon-separated keywords to filter videos (e.g., 'Halo;Campaign')")] string? keywords = null)
+        [Summary("keywords", "Optional semicolon-separated keywords to filter videos (e.g., 'Halo;Campaign')")] string? keywords = null,
+        CancellationToken cancellationToken = default)
     {
         await DeferAsync(ephemeral: true);
 
-        if (!YoutubeChannelReferenceParser.TryNormalize(channelReference, out var channelId) || string.IsNullOrWhiteSpace(channelId))
+        var resolvedName = displayName?.Trim();
+        string channelId;
+
+        if (YoutubeChannelReferenceParser.TryNormalize(channelReference, out var normalizedReference) && !string.IsNullOrWhiteSpace(normalizedReference))
+        {
+            channelId = normalizedReference;
+        }
+        else
+        {
+            var searchResult = await _channelSearchService.SearchAsync(channelReference, cancellationToken);
+            if (searchResult == null)
+            {
+                await FollowupAsync("❌ Provide a valid YouTube channel ID, @handle, channel feed URL, or a channel name that can be resolved with the YouTube Data API.");
+                return;
+            }
+
+            channelId = searchResult.ChannelId;
+            resolvedName ??= searchResult.ChannelName;
+        }
+
+        if (string.IsNullOrWhiteSpace(channelId))
         {
             await FollowupAsync("❌ Provide a valid YouTube channel ID, @handle, or channel feed URL.");
             return;
         }
 
         var normalizedName = string.IsNullOrWhiteSpace(displayName)
-            ? channelId
+            ? resolvedName ?? channelId
             : displayName.Trim();
 
         var normalizedKeywords = string.IsNullOrWhiteSpace(keywords)

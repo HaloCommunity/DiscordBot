@@ -24,17 +24,20 @@ public class YoutubeMonitorService : BackgroundService
     private readonly BotConfig _config;
     private readonly IServiceProvider _serviceProvider;
     private readonly HttpClient _httpClient;
+    private readonly YoutubeChannelSearchService _channelSearchService;
     private readonly ILogger<YoutubeMonitorService> _logger;
 
     public YoutubeMonitorService(
         DiscordSocketClient client,
         BotConfig config,
         IServiceProvider serviceProvider,
+        YoutubeChannelSearchService channelSearchService,
         ILogger<YoutubeMonitorService> logger)
     {
         _client = client;
         _config = config;
         _serviceProvider = serviceProvider;
+        _channelSearchService = channelSearchService;
         _logger = logger;
 
         _httpClient = new HttpClient();
@@ -99,13 +102,31 @@ public class YoutubeMonitorService : BackgroundService
 
         foreach (var trackedChannel in channels)
         {
-            if (!YoutubeChannelReferenceParser.TryNormalize(trackedChannel.ChannelId, out var normalizedReference) ||
+            var originalReference = trackedChannel.ChannelId;
+
+            if (!YoutubeChannelReferenceParser.TryNormalize(originalReference, out var normalizedReference) ||
                 string.IsNullOrWhiteSpace(normalizedReference))
             {
-                trackedChannel.IsEnabled = false;
+                var searchResult = await _channelSearchService.SearchAsync(originalReference, cancellationToken);
+                if (searchResult == null)
+                {
+                    trackedChannel.IsEnabled = false;
+                    trackedChannel.UpdatedAt = DateTime.UtcNow;
+                    invalidChannels.Add(originalReference);
+                    continue;
+                }
+
+                normalizedReference = searchResult.ChannelId;
+                trackedChannel.ChannelId = searchResult.ChannelId;
+
+                if (string.IsNullOrWhiteSpace(trackedChannel.ChannelName) ||
+                    string.Equals(trackedChannel.ChannelName.Trim(), originalReference.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    trackedChannel.ChannelName = searchResult.ChannelName;
+                }
+
                 trackedChannel.UpdatedAt = DateTime.UtcNow;
-                invalidChannels.Add(trackedChannel.ChannelId);
-                continue;
+                normalizedUpdated++;
             }
 
             // Reject placeholder/invalid UC IDs so they do not spam feed polling warnings.
@@ -197,10 +218,27 @@ public class YoutubeMonitorService : BackgroundService
                     ? string.Join(";", channel.KeywordFilters.Select(k => k.Trim()))
                     : null;
 
+                var channelReference = channel.ChannelId.Trim();
+                var channelName = string.IsNullOrWhiteSpace(channel.ChannelName) ? channelReference : channel.ChannelName.Trim();
+
+                if (!YoutubeChannelReferenceParser.TryNormalize(channelReference, out var normalizedReference) ||
+                    string.IsNullOrWhiteSpace(normalizedReference))
+                {
+                    var searchResult = await _channelSearchService.SearchAsync(channelReference, cancellationToken);
+                    if (searchResult == null)
+                    {
+                        _logger.LogWarning("Skipping configured YouTube seed channel because it could not be resolved: {ChannelReference}", channelReference);
+                        continue;
+                    }
+
+                    normalizedReference = searchResult.ChannelId;
+                    channelName = string.IsNullOrWhiteSpace(channel.ChannelName) ? searchResult.ChannelName : channelName;
+                }
+
                 db.YoutubeTrackedChannels.Add(new YoutubeTrackedChannel
                 {
-                    ChannelId = channel.ChannelId.Trim(),
-                    ChannelName = string.IsNullOrWhiteSpace(channel.ChannelName) ? channel.ChannelId.Trim() : channel.ChannelName.Trim(),
+                    ChannelId = normalizedReference,
+                    ChannelName = channelName,
                     PostTitleTemplate = string.IsNullOrWhiteSpace(channel.PostTitleTemplate) ? null : channel.PostTitleTemplate.Trim(),
                     KeywordFilters = keywords,
                     IsEnabled = true,
@@ -220,10 +258,20 @@ public class YoutubeMonitorService : BackgroundService
         YoutubeTrackedChannel youtubeChannel,
         CancellationToken cancellationToken)
     {
-        var feed = await LoadFeedAsync(youtubeChannel.ChannelId, cancellationToken);
-        if (feed == null)
+        if (!YoutubeChannelReferenceParser.TryNormalize(youtubeChannel.ChannelId, out var normalizedReference))
         {
             _logger.LogWarning(
+                "Skipping tracked YouTube channel because the stored reference is not a supported YouTube channel ID, @handle, or feed URL. DbId={DbId}, ChannelId={ChannelId}, ChannelName={ChannelName}",
+                youtubeChannel.Id,
+                youtubeChannel.ChannelId,
+                youtubeChannel.ChannelName ?? "(null)");
+            return;
+        }
+
+        var feed = await LoadFeedAsync(normalizedReference, cancellationToken);
+        if (feed == null)
+        {
+            _logger.LogDebug(
                 "Skipping tracked YouTube channel due to feed load failure. DbId={DbId}, ChannelId={ChannelId}, ChannelName={ChannelName}",
                 youtubeChannel.Id,
                 youtubeChannel.ChannelId,

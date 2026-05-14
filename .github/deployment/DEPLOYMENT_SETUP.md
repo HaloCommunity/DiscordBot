@@ -46,6 +46,7 @@ HALOCOMMUNITYBOT_Bot__Token=your_discord_token_here
 HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=true
 HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=your_channel_id_here
 HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=your_role_id_here
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey=your_youtube_data_api_key_here
 EOF
 
 sudo chmod 600 /opt/halocommunitybot/.env
@@ -59,6 +60,7 @@ Environment variable names use the `HALOCOMMUNITYBOT_` prefix and `__` (double-u
 | `HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled` | `Bot:StatusMonitor:Enabled` | Enable status RSS monitor |
 | `HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId` | `Bot:StatusMonitor:ChannelId` | Channel to post status updates |
 | `HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId` | `Bot:StatusMonitor:RoleId` | Optional role to mention for status updates |
+| `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey` | `Bot:YoutubeMonitor:YouTubeDataApiKey` | Optional YouTube Data API key for resolving channel names |
 
 ### 4. Install .NET 10 Runtime
 

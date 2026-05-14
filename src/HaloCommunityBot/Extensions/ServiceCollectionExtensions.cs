@@ -64,6 +64,7 @@ public static class ServiceCollectionExtensions
         };
         services.AddSingleton(socketConfig);
         services.AddSingleton<DiscordSocketClient>();
+        services.AddHttpClient<YoutubeChannelSearchService>();
 
         services.AddSingleton(x =>
         {
