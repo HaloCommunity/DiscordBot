@@ -17,6 +17,7 @@ Directory.CreateDirectory(logsDir);
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
     .WriteTo.Console(outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] {SourceContext:l} {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(Path.Combine(logsDir, "halocommunitybot-.log"),
         rollingInterval: RollingInterval.Day,
@@ -46,6 +47,8 @@ try
                 .ConfigureLogging(logging =>
                 {
                     logging.ClearProviders();
+                    logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+                    logging.AddFilter("System.Net.Http.HttpClient.Default", LogLevel.Warning);
                     logging.AddSerilog();
                 })
                 .Build();
