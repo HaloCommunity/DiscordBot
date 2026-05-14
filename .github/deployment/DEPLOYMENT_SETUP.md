@@ -85,7 +85,7 @@ Grant `deployer` passwordless access to only the commands needed by the workflow
 
 ```bash
 sudo tee /etc/sudoers.d/halocommunitybot-deploy > /dev/null << 'EOF'
-deployer ALL=(root) NOPASSWD: /bin/systemctl start halocommunitybot.service, /bin/systemctl stop halocommunitybot.service, /bin/systemctl status halocommunitybot.service, /bin/chown, /bin/chmod, /usr/bin/tee, /bin/mkdir
+deployer ALL=(root) NOPASSWD: /bin/systemctl start halocommunitybot.service, /bin/systemctl stop halocommunitybot.service, /bin/systemctl status halocommunitybot.service, /bin/systemctl daemon-reload, /bin/chown, /bin/chmod, /usr/bin/tee, /bin/mkdir, /bin/mv
 EOF
 sudo chmod 440 /etc/sudoers.d/halocommunitybot-deploy
 sudo visudo -cf /etc/sudoers.d/halocommunitybot-deploy
@@ -98,9 +98,10 @@ The GitHub Actions workflow (`deploy.yml`) handles:
 1. Building the project
 2. Publishing a Release build
 3. Uploading files via SSH/rsync
-4. Writing the `.env` file from GitHub secrets
-5. Managing the systemd service (stop → deploy → start)
-6. Checking service status post-deploy
+4. Re-deploying the systemd service unit and reloading systemd
+5. Writing the `.env` file from GitHub secrets
+6. Managing the systemd service (stop → deploy → start)
+7. Checking service status post-deploy
 
 ### Required GitHub Secrets
 

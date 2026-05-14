@@ -66,6 +66,12 @@ jobs:
         rsync -avz --delete --exclude='*.db' --exclude='*.db-shm' --exclude='*.db-wal' -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
           ./publish/ ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
 
+    - name: Deploy systemd service file
+      run: |
+        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/halocommunitybot.service ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/halocommunitybot.service
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          "sudo -n mv /tmp/halocommunitybot.service /etc/systemd/system/halocommunitybot.service && sudo -n systemctl daemon-reload"
+
     - name: Write .env file from secrets
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
