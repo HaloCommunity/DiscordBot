@@ -124,7 +124,7 @@ jobs:
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
           "sudo -n chown -R ${{ env.RUNTIME_USER }}:${{ env.RUNTIME_USER }} ${{ env.DEPLOY_PATH }} && \
-           chmod +x ${{ env.DEPLOY_PATH }}/HaloCommunityBot"
+           sudo -n chmod +x ${{ env.DEPLOY_PATH }}/HaloCommunityBot"
     
     - name: Start bot service
       run: |
