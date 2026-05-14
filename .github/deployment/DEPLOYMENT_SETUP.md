@@ -17,12 +17,22 @@ sudo useradd -m -s /bin/bash deployer
 sudo usermod -aG sudo deployer
 ```
 
+### 1.1 Create Runtime User
+
+The service runs as a dedicated non-login account named `halobot`.
+
+```bash
+sudo useradd -r -s /usr/sbin/nologin halobot
+```
+
 ### 2. Setup Directory Structure
 
 ```bash
 sudo mkdir -p /opt/halocommunitybot
 sudo chown deployer:deployer /opt/halocommunitybot
 ```
+
+The deploy workflow temporarily grants `deployer` write access for file sync, then sets final runtime ownership back to `halobot` before starting the service.
 
 ### 3. Create `.env` File
 
@@ -169,7 +179,14 @@ ls -la /opt/halocommunitybot/.env
 ### Permission denied errors
 
 ```bash
-sudo chown -R deployer:deployer /opt/halocommunitybot
+sudo chown -R halobot:halobot /opt/halocommunitybot
+```
+
+### Check runtime user exists
+
+```bash
+id halobot
+getent passwd halobot
 ```
 
 ### Check if .NET is installed

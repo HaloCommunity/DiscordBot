@@ -13,6 +13,7 @@ env:
   DOTNET_VERSION: '10.0.203'
   PROJECT_PATH: 'src/HaloCommunityBot/HaloCommunityBot.csproj'
   DEPLOY_USER: 'deployer'
+  RUNTIME_USER: 'halobot'
   DEPLOY_PATH: '/opt/halocommunitybot'
 
 jobs:
@@ -89,13 +90,13 @@ jobs:
         HALOCOMMUNITYBOT_Bot__Heartbeat__StartupDelaySeconds=${{ secrets.HEARTBEAT_STARTUP_DELAY_SECONDS || '15' }}
         HALOCOMMUNITYBOT_Bot__Heartbeat__TimeoutSeconds=${{ secrets.HEARTBEAT_TIMEOUT_SECONDS || '10' }}
         ENVEOF
-        sudo -n chown ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }}/.env
+        sudo -n chown ${{ env.RUNTIME_USER }}:${{ env.RUNTIME_USER }} ${{ env.DEPLOY_PATH }}/.env
         sudo -n chmod 600 ${{ env.DEPLOY_PATH }}/.env"
     
     - name: Set permissions
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo -n chown -R ${{ env.DEPLOY_USER }}:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }} && \
+          "sudo -n chown -R ${{ env.RUNTIME_USER }}:${{ env.RUNTIME_USER }} ${{ env.DEPLOY_PATH }} && \
            chmod +x ${{ env.DEPLOY_PATH }}/HaloCommunityBot"
     
     - name: Start bot service
