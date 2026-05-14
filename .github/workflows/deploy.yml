@@ -63,8 +63,8 @@ jobs:
     
     - name: Deploy files
       run: |
-        # Preserve runtime SQLite files that live in the deployment directory.
-        rsync -avz --delete --exclude='*.db' --exclude='*.db-shm' --exclude='*.db-wal' -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+        # Preserve runtime SQLite/log files and avoid group metadata updates on host-owned files.
+        rsync -avz --no-group --delete --exclude='*.db' --exclude='*.db-shm' --exclude='*.db-wal' --exclude='logs/' -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
           ./publish/ ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.DEPLOY_PATH }}/
 
     - name: Deploy systemd service file
