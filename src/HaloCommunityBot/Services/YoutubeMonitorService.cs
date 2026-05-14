@@ -78,7 +78,10 @@ public class YoutubeMonitorService : BackgroundService
 
         await EnsureSeededAsync(db, cancellationToken);
 
-        var settings = await db.YoutubeMonitorSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        var settings = await db.YoutubeMonitorSettings
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (settings == null || !settings.Enabled || settings.ForumChannelId == 0)
         {
             _logger.LogInformation("YouTube monitor is disabled or not configured — skipping.");
@@ -188,7 +191,10 @@ public class YoutubeMonitorService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<HaloCommunityBotContext>();
         await EnsureSeededAsync(db, cancellationToken);
 
-        var settings = await db.YoutubeMonitorSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        var settings = await db.YoutubeMonitorSettings
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         return settings?.PollIntervalMinutes > 0 ? settings.PollIntervalMinutes : 15;
     }
 

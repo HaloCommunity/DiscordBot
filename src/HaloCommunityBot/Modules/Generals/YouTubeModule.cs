@@ -222,7 +222,9 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
 
     private async Task<YoutubeMonitorSettings> GetOrCreateSettingsAsync()
     {
-        var settings = await _db.YoutubeMonitorSettings.FirstOrDefaultAsync();
+        var settings = await _db.YoutubeMonitorSettings
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync();
         if (settings != null)
         {
             return settings;
