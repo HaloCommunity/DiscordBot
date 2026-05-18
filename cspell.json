@@ -99,6 +99,7 @@
     "roleid",
     "rsync",
     "runtimeconfig",
+    "Serilog",
     "serverinfo",
     "servicecollection",
     "serviceprovider",

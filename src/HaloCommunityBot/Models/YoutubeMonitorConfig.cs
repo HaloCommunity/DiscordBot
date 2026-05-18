@@ -27,6 +27,9 @@ public class YoutubeMonitorConfig
             if (ForumChannelId == 0)
                 throw new InvalidOperationException("YoutubeMonitorConfig: When enabled, ForumChannelId must be a valid Discord forum channel ID (non-zero). Current value: 0. Check HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId environment variable. Must be a single channel ID, not 'guildId/channelId'.");
 
+            if (string.IsNullOrWhiteSpace(YouTubeDataApiKey))
+                throw new InvalidOperationException("YoutubeMonitorConfig: When enabled, YouTubeDataApiKey is required. Set HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey.");
+
             if (string.IsNullOrWhiteSpace(DefaultPostTitleTemplate))
                 throw new InvalidOperationException("YoutubeMonitorConfig: DefaultPostTitleTemplate cannot be empty.");
 

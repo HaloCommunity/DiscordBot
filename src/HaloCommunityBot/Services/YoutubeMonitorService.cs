@@ -1,6 +1,4 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
+using System.Text.Json;
 using Discord;
 using Discord.WebSocket;
 using DiscordBot.Core.Data;
@@ -17,8 +15,10 @@ namespace DiscordBot.Services;
 /// </summary>
 public class YoutubeMonitorService : BackgroundService
 {
-    private static readonly XNamespace AtomNamespace = "http://www.w3.org/2005/Atom";
-    private static readonly XNamespace YoutubeNamespace = "http://www.youtube.com/xml/schemas/2015";
+    private const string YoutubeApiBaseUrl = "https://www.googleapis.com/youtube/v3/";
+    private const string YoutubeChannelVideosEndpoint = "search?part=snippet&type=video&order=date&maxResults=15&channelId={0}&key={1}";
+    private static readonly TimeSpan QuotaBackoffDuration = TimeSpan.FromHours(1);
+    private static readonly TimeSpan RateLimitBackoffDuration = TimeSpan.FromMinutes(10);
 
     private readonly DiscordSocketClient _client;
     private readonly BotConfig _config;
@@ -26,6 +26,10 @@ public class YoutubeMonitorService : BackgroundService
     private readonly HttpClient _httpClient;
     private readonly YoutubeChannelSearchService _channelSearchService;
     private readonly ILogger<YoutubeMonitorService> _logger;
+    private readonly object _apiBackoffLock = new();
+
+    private DateTime _youtubeApiBackoffUntilUtc;
+    private string? _youtubeApiBackoffReason;
 
     public YoutubeMonitorService(
         DiscordSocketClient client,
@@ -85,6 +89,21 @@ public class YoutubeMonitorService : BackgroundService
         if (settings == null || !settings.Enabled || settings.ForumChannelId == 0)
         {
             _logger.LogInformation("YouTube monitor is disabled or not configured — skipping.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.YoutubeMonitor.YouTubeDataApiKey))
+        {
+            _logger.LogWarning("YouTube monitor is enabled but YouTubeDataApiKey is not configured. Set Bot:YoutubeMonitor:YouTubeDataApiKey.");
+            return;
+        }
+
+        if (TryGetApiBackoff(out var backoffUntilUtc, out var backoffReason))
+        {
+            _logger.LogWarning(
+                "YouTube monitor is backing off YouTube Data API polling until {BackoffUntilUtc:o}. Reason: {BackoffReason}",
+                backoffUntilUtc,
+                backoffReason);
             return;
         }
 
@@ -182,6 +201,11 @@ public class YoutubeMonitorService : BackgroundService
         foreach (var youtubeChannel in normalizedChannels)
         {
             await PollChannelAsync(db, forumChannel, settings, youtubeChannel, cancellationToken);
+
+            if (TryGetApiBackoff(out _, out _))
+            {
+                break;
+            }
         }
     }
 
@@ -447,104 +471,124 @@ public class YoutubeMonitorService : BackgroundService
     private async Task<YouTubeFeed?> LoadFeedAsync(string channelReference, CancellationToken cancellationToken)
     {
         var normalizedReference = channelReference.Trim();
-        var feedUrls = new List<string>();
-        var attemptFailures = new List<string>();
+        var apiKey = _config.YoutubeMonitor.YouTubeDataApiKey?.Trim();
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return null;
+        }
+
+        if (TryGetApiBackoff(out _, out _))
+        {
+            return null;
+        }
+
+        var channelId = await ResolveChannelIdAsync(normalizedReference, cancellationToken);
+        if (string.IsNullOrWhiteSpace(channelId))
+        {
+            _logger.LogWarning("Failed to resolve YouTube channel ID for reference {ChannelReference}.", normalizedReference);
+            return null;
+        }
+
+        var requestUrl = YoutubeApiBaseUrl + string.Format(
+            YoutubeChannelVideosEndpoint,
+            Uri.EscapeDataString(channelId),
+            Uri.EscapeDataString(apiKey));
 
         try
         {
-            // Allow direct feed URLs.
-            if (Uri.TryCreate(normalizedReference, UriKind.Absolute, out var parsedUri) &&
-                parsedUri.Host.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) &&
-                parsedUri.AbsolutePath.Contains("/feeds/videos.xml", StringComparison.OrdinalIgnoreCase))
-            {
-                feedUrls.Add(parsedUri.ToString());
-            }
+            using var response = await _httpClient.GetAsync(requestUrl, cancellationToken);
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            // channel/<UC...> URL support.
-            if (TryExtractChannelIdFromUrl(normalizedReference, out var extractedChannelId))
+            if (!response.IsSuccessStatusCode)
             {
-                feedUrls.Add(BuildChannelFeedUrl(extractedChannelId));
-            }
+                var reason = TryGetYoutubeApiErrorReason(payload);
+                var statusCode = (int)response.StatusCode;
 
-            // Direct UC channel id support.
-            if (LooksLikeYoutubeChannelId(normalizedReference))
-            {
-                feedUrls.Add(BuildChannelFeedUrl(normalizedReference));
-            }
-
-            // Handle/user support (for records created with /youtube add-channel @handle or plain handle).
-            var handleOrUser = normalizedReference.TrimStart('@');
-            if (!string.IsNullOrWhiteSpace(handleOrUser) && !LooksLikeYoutubeChannelId(handleOrUser))
-            {
-                var resolvedChannelId = await TryResolveChannelIdFromHandleAsync(handleOrUser, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(resolvedChannelId))
+                if (IsQuotaErrorReason(reason))
                 {
-                    feedUrls.Add(BuildChannelFeedUrl(resolvedChannelId));
+                    SetApiBackoff(QuotaBackoffDuration, reason!);
+                }
+                else if (IsRateLimitErrorReason(reason))
+                {
+                    SetApiBackoff(RateLimitBackoffDuration, reason!);
                 }
 
-                // Legacy username feed fallback.
-                feedUrls.Add($"https://www.youtube.com/feeds/videos.xml?user={Uri.EscapeDataString(handleOrUser)}");
-
-                // Some existing records store non-UC values in ChannelId, keep this fallback for compatibility.
-                feedUrls.Add(BuildChannelFeedUrl(handleOrUser));
+                _logger.LogWarning(
+                    "Failed to load YouTube videos for channel {ChannelId}. HTTP {StatusCode}. Reason: {Reason}",
+                    channelId,
+                    statusCode,
+                    string.IsNullOrWhiteSpace(reason) ? "unknown" : reason);
+                return null;
             }
 
-            // Final fallback for any remaining input.
-            if (feedUrls.Count == 0)
+            using var document = JsonDocument.Parse(payload);
+            if (!document.RootElement.TryGetProperty("items", out var itemsElement) || itemsElement.ValueKind != JsonValueKind.Array)
             {
-                feedUrls.Add(BuildChannelFeedUrl(normalizedReference));
+                return new YouTubeFeed(normalizedReference, new List<YouTubeVideoEntry>());
             }
 
-            foreach (var url in feedUrls.Distinct(StringComparer.OrdinalIgnoreCase))
+            var videos = new List<YouTubeVideoEntry>();
+            string? channelName = null;
+
+            foreach (var item in itemsElement.EnumerateArray())
             {
-                try
+                if (!item.TryGetProperty("id", out var idElement) ||
+                    !idElement.TryGetProperty("videoId", out var videoIdElement))
                 {
-                    using var response = await _httpClient.GetAsync(url, cancellationToken);
-                    var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+                    continue;
+                }
 
-                    if (!response.IsSuccessStatusCode)
+                var videoId = videoIdElement.GetString()?.Trim();
+                if (string.IsNullOrWhiteSpace(videoId))
+                {
+                    continue;
+                }
+
+                if (!item.TryGetProperty("snippet", out var snippetElement))
+                {
+                    continue;
+                }
+
+                var title = snippetElement.TryGetProperty("title", out var titleElement)
+                    ? titleElement.GetString()?.Trim()
+                    : null;
+                var description = snippetElement.TryGetProperty("description", out var descriptionElement)
+                    ? descriptionElement.GetString()?.Trim() ?? string.Empty
+                    : string.Empty;
+
+                channelName ??= snippetElement.TryGetProperty("channelTitle", out var channelTitleElement)
+                    ? channelTitleElement.GetString()?.Trim()
+                    : null;
+
+                var publishedAt = DateTime.UtcNow;
+                if (snippetElement.TryGetProperty("publishedAt", out var publishedAtElement))
+                {
+                    var publishedAtText = publishedAtElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(publishedAtText) && DateTimeOffset.TryParse(publishedAtText, out var parsedPublishedAt))
                     {
-                        attemptFailures.Add($"{url} => HTTP {(int)response.StatusCode}");
-                        continue;
+                        publishedAt = parsedPublishedAt.UtcDateTime;
                     }
-
-                    if (!LooksLikeXml(payload))
-                    {
-                        attemptFailures.Add($"{url} => non-XML response");
-                        continue;
-                    }
-
-                    var doc = XDocument.Parse(payload);
-
-                    var authorElement = doc.Root?.Element(AtomNamespace + "author");
-                    var channelName = authorElement?.Element(AtomNamespace + "name")?.Value?.Trim()
-                        ?? doc.Root?.Element(AtomNamespace + "title")?.Value?.Trim()
-                        ?? normalizedReference;
-
-                    var videos = doc.Descendants(AtomNamespace + "entry")
-                        .Select(ParseVideoEntry)
-                        .Where(video => video != null)
-                        .Select(video => video!)
-                        .ToList();
-
-                    return new YouTubeFeed(channelName, videos);
                 }
-                catch (Exception ex)
-                {
-                    attemptFailures.Add($"{url} => {ex.GetType().Name}: {ex.Message}");
-                }
+
+                videos.Add(new YouTubeVideoEntry(
+                    videoId,
+                    string.IsNullOrWhiteSpace(title) ? videoId : title,
+                    $"https://www.youtube.com/watch?v={videoId}",
+                    publishedAt,
+                    description));
             }
 
-            var attemptsSummary = attemptFailures.Count == 0
-                ? "(no attempts)"
-                : string.Join(" | ", attemptFailures.Take(5));
+            var resolvedChannelName = string.IsNullOrWhiteSpace(channelName) ? normalizedReference : channelName;
+            var orderedVideos = videos
+                .OrderByDescending(video => video.PublishedAt)
+                .ToList();
 
-            _logger.LogWarning("Failed to load YouTube feed for channel {ChannelReference}. Attempts: {AttemptsSummary}", normalizedReference, attemptsSummary);
-            return null;
+            return new YouTubeFeed(resolvedChannelName!, orderedVideos);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load YouTube feed for channel {ChannelReference}.", normalizedReference);
+            _logger.LogWarning(ex, "Failed to load YouTube Data API videos for channel {ChannelReference}.", normalizedReference);
             return null;
         }
     }
@@ -555,20 +599,133 @@ public class YoutubeMonitorService : BackgroundService
         return trimmed.StartsWith("UC", StringComparison.OrdinalIgnoreCase) && trimmed.Length >= 20;
     }
 
-    private static string BuildChannelFeedUrl(string channelIdOrReference)
+    private bool TryGetApiBackoff(out DateTime backoffUntilUtc, out string backoffReason)
     {
-        return $"https://www.youtube.com/feeds/videos.xml?channel_id={Uri.EscapeDataString(channelIdOrReference.Trim())}";
+        lock (_apiBackoffLock)
+        {
+            if (_youtubeApiBackoffUntilUtc > DateTime.UtcNow)
+            {
+                backoffUntilUtc = _youtubeApiBackoffUntilUtc;
+                backoffReason = string.IsNullOrWhiteSpace(_youtubeApiBackoffReason) ? "unknown" : _youtubeApiBackoffReason;
+                return true;
+            }
+
+            _youtubeApiBackoffUntilUtc = DateTime.MinValue;
+            _youtubeApiBackoffReason = null;
+            backoffUntilUtc = DateTime.MinValue;
+            backoffReason = string.Empty;
+            return false;
+        }
     }
 
-    private static bool LooksLikeXml(string payload)
+    private void SetApiBackoff(TimeSpan duration, string reason)
     {
-        if (string.IsNullOrWhiteSpace(payload))
+        var until = DateTime.UtcNow.Add(duration);
+
+        lock (_apiBackoffLock)
+        {
+            if (until <= _youtubeApiBackoffUntilUtc)
+            {
+                return;
+            }
+
+            _youtubeApiBackoffUntilUtc = until;
+            _youtubeApiBackoffReason = reason;
+        }
+
+        _logger.LogWarning(
+            "YouTube Data API backoff activated for {BackoffMinutes} minute(s) due to {Reason}. Next retry after {BackoffUntilUtc:o}.",
+            Math.Round(duration.TotalMinutes),
+            reason,
+            until);
+    }
+
+    private static bool IsQuotaErrorReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
         {
             return false;
         }
 
-        var trimmed = payload.TrimStart();
-        return trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) || trimmed.StartsWith("<feed", StringComparison.OrdinalIgnoreCase);
+        return reason.Equals("quotaExceeded", StringComparison.OrdinalIgnoreCase) ||
+               reason.Equals("dailyLimitExceeded", StringComparison.OrdinalIgnoreCase) ||
+               reason.Equals("dailyLimitExceededUnreg", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRateLimitErrorReason(string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return false;
+        }
+
+        return reason.Equals("rateLimitExceeded", StringComparison.OrdinalIgnoreCase) ||
+               reason.Equals("userRateLimitExceeded", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? TryGetYoutubeApiErrorReason(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (!document.RootElement.TryGetProperty("error", out var errorElement))
+            {
+                return null;
+            }
+
+            if (errorElement.TryGetProperty("errors", out var errorsElement) &&
+                errorsElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var entry in errorsElement.EnumerateArray())
+                {
+                    if (entry.TryGetProperty("reason", out var reasonElement))
+                    {
+                        var reasonValue = reasonElement.GetString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(reasonValue))
+                        {
+                            return reasonValue;
+                        }
+                    }
+                }
+            }
+
+            if (errorElement.TryGetProperty("message", out var messageElement))
+            {
+                var message = messageElement.GetString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    return message;
+                }
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ResolveChannelIdAsync(string channelReference, CancellationToken cancellationToken)
+    {
+        var trimmed = channelReference.Trim();
+        if (LooksLikeYoutubeChannelId(trimmed))
+        {
+            return trimmed;
+        }
+
+        if (TryExtractChannelIdFromUrl(trimmed, out var channelIdFromUrl) && LooksLikeYoutubeChannelId(channelIdFromUrl))
+        {
+            return channelIdFromUrl;
+        }
+
+        var searchResult = await _channelSearchService.SearchAsync(trimmed, cancellationToken);
+        return searchResult?.ChannelId;
     }
 
     private static bool TryExtractChannelIdFromUrl(string input, out string channelId)
@@ -589,68 +746,6 @@ public class YoutubeMonitorService : BackgroundService
         }
 
         return false;
-    }
-
-    private async Task<string?> TryResolveChannelIdFromHandleAsync(string handleOrUser, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var handle = handleOrUser.TrimStart('@').Trim();
-            if (string.IsNullOrWhiteSpace(handle))
-            {
-                return null;
-            }
-
-            var profileUrl = $"https://www.youtube.com/@{Uri.EscapeDataString(handle)}";
-            using var response = await _httpClient.GetAsync(profileUrl, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                return null;
-            }
-
-            var html = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (string.IsNullOrWhiteSpace(html))
-            {
-                return null;
-            }
-
-            var match = Regex.Match(html, "\"externalId\":\"(?<id>UC[0-9A-Za-z_-]{20,})\"", RegexOptions.IgnoreCase);
-            if (!match.Success)
-            {
-                match = Regex.Match(html, "\"channelId\":\"(?<id>UC[0-9A-Za-z_-]{20,})\"", RegexOptions.IgnoreCase);
-            }
-
-            return match.Success ? match.Groups["id"].Value : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static YouTubeVideoEntry? ParseVideoEntry(XElement entry)
-    {
-        var videoId = entry.Element(YoutubeNamespace + "videoId")?.Value?.Trim();
-        if (string.IsNullOrWhiteSpace(videoId))
-        {
-            return null;
-        }
-
-        var title = entry.Element(AtomNamespace + "title")?.Value?.Trim() ?? videoId;
-        var description = entry.Element(AtomNamespace + "summary")?.Value?.Trim() ?? string.Empty;
-        var link = entry.Elements(AtomNamespace + "link")
-            .FirstOrDefault(x => string.Equals(x.Attribute("rel")?.Value, "alternate", StringComparison.OrdinalIgnoreCase))
-            ?.Attribute("href")?.Value?.Trim()
-            ?? $"https://www.youtube.com/watch?v={videoId}";
-
-        var publishedText = entry.Element(AtomNamespace + "published")?.Value;
-        var publishedAt = DateTime.UtcNow;
-        if (!string.IsNullOrWhiteSpace(publishedText) && DateTime.TryParse(publishedText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedPublishedAt))
-        {
-            publishedAt = parsedPublishedAt;
-        }
-
-        return new YouTubeVideoEntry(videoId, title, link, publishedAt, description);
     }
 
     private sealed record YouTubeFeed(string ChannelName, IReadOnlyList<YouTubeVideoEntry> Videos);
