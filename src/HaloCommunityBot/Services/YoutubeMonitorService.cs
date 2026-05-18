@@ -16,7 +16,9 @@ namespace DiscordBot.Services;
 public class YoutubeMonitorService : BackgroundService
 {
     private const string YoutubeApiBaseUrl = "https://www.googleapis.com/youtube/v3/";
-    private const string YoutubeChannelVideosEndpoint = "search?part=snippet&type=video&order=date&maxResults=15&channelId={0}&key={1}";
+    private const string YoutubePlaylistItemsEndpoint = "playlistItems?part=snippet&maxResults=15&playlistId={0}&key={1}";
+    private const string YoutubeChannelsContentDetailsEndpoint = "channels?part=contentDetails&id={0}&key={1}";
+    private const int MinimumPollIntervalMinutes = 60;
     private static readonly TimeSpan QuotaBackoffDuration = TimeSpan.FromHours(1);
     private static readonly TimeSpan RateLimitBackoffDuration = TimeSpan.FromMinutes(10);
 
@@ -30,6 +32,7 @@ public class YoutubeMonitorService : BackgroundService
 
     private DateTime _youtubeApiBackoffUntilUtc;
     private string? _youtubeApiBackoffReason;
+    private bool _hasLoggedPollIntervalClamp;
 
     public YoutubeMonitorService(
         DiscordSocketClient client,
@@ -190,7 +193,17 @@ public class YoutubeMonitorService : BackgroundService
             return;
         }
 
-        _logger.LogInformation("YouTube monitor started. Polling {Count} valid channel(s) every {Interval} minute(s).", normalizedChannels.Count, settings.PollIntervalMinutes);
+        var effectivePollInterval = GetEffectivePollIntervalMinutes(settings.PollIntervalMinutes);
+        if (settings.PollIntervalMinutes < MinimumPollIntervalMinutes && !_hasLoggedPollIntervalClamp)
+        {
+            _logger.LogWarning(
+                "YouTube monitor PollIntervalMinutes={ConfiguredInterval} is too aggressive for YouTube Data API search quota. Clamping to {EffectiveInterval} minute(s).",
+                settings.PollIntervalMinutes,
+                effectivePollInterval);
+            _hasLoggedPollIntervalClamp = true;
+        }
+
+        _logger.LogInformation("YouTube monitor started. Polling {Count} valid channel(s) every {Interval} minute(s).", normalizedChannels.Count, effectivePollInterval);
 
         if (_client.GetChannel(settings.ForumChannelId) is not IForumChannel forumChannel)
         {
@@ -219,7 +232,17 @@ public class YoutubeMonitorService : BackgroundService
             .AsNoTracking()
             .OrderBy(x => x.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        return settings?.PollIntervalMinutes > 0 ? settings.PollIntervalMinutes : 15;
+        return GetEffectivePollIntervalMinutes(settings?.PollIntervalMinutes ?? MinimumPollIntervalMinutes);
+    }
+
+    private static int GetEffectivePollIntervalMinutes(int configuredInterval)
+    {
+        if (configuredInterval <= 0)
+        {
+            return MinimumPollIntervalMinutes;
+        }
+
+        return Math.Max(configuredInterval, MinimumPollIntervalMinutes);
     }
 
     private async Task EnsureSeededAsync(HaloCommunityBotContext db, CancellationToken cancellationToken)
@@ -490,9 +513,18 @@ public class YoutubeMonitorService : BackgroundService
             return null;
         }
 
+        var uploadsPlaylistId = TryBuildUploadsPlaylistId(channelId)
+            ?? await GetUploadsPlaylistIdAsync(channelId, apiKey, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(uploadsPlaylistId))
+        {
+            _logger.LogWarning("Failed to resolve uploads playlist for channel {ChannelId}.", channelId);
+            return null;
+        }
+
         var requestUrl = YoutubeApiBaseUrl + string.Format(
-            YoutubeChannelVideosEndpoint,
-            Uri.EscapeDataString(channelId),
+            YoutubePlaylistItemsEndpoint,
+            Uri.EscapeDataString(uploadsPlaylistId),
             Uri.EscapeDataString(apiKey));
 
         try
@@ -515,7 +547,7 @@ public class YoutubeMonitorService : BackgroundService
                 }
 
                 _logger.LogWarning(
-                    "Failed to load YouTube videos for channel {ChannelId}. HTTP {StatusCode}. Reason: {Reason}",
+                    "Failed to load YouTube uploads playlist items for channel {ChannelId}. HTTP {StatusCode}. Reason: {Reason}",
                     channelId,
                     statusCode,
                     string.IsNullOrWhiteSpace(reason) ? "unknown" : reason);
@@ -533,19 +565,19 @@ public class YoutubeMonitorService : BackgroundService
 
             foreach (var item in itemsElement.EnumerateArray())
             {
-                if (!item.TryGetProperty("id", out var idElement) ||
-                    !idElement.TryGetProperty("videoId", out var videoIdElement))
+                if (!item.TryGetProperty("snippet", out var snippetElement))
+                {
+                    continue;
+                }
+
+                if (!snippetElement.TryGetProperty("resourceId", out var resourceIdElement) ||
+                    !resourceIdElement.TryGetProperty("videoId", out var videoIdElement))
                 {
                     continue;
                 }
 
                 var videoId = videoIdElement.GetString()?.Trim();
                 if (string.IsNullOrWhiteSpace(videoId))
-                {
-                    continue;
-                }
-
-                if (!item.TryGetProperty("snippet", out var snippetElement))
                 {
                     continue;
                 }
@@ -591,6 +623,69 @@ public class YoutubeMonitorService : BackgroundService
             _logger.LogWarning(ex, "Failed to load YouTube Data API videos for channel {ChannelReference}.", normalizedReference);
             return null;
         }
+    }
+
+    private static string? TryBuildUploadsPlaylistId(string channelId)
+    {
+        var trimmed = channelId.Trim();
+        if (!trimmed.StartsWith("UC", StringComparison.OrdinalIgnoreCase) || trimmed.Length < 3)
+        {
+            return null;
+        }
+
+        return "UU" + trimmed[2..];
+    }
+
+    private async Task<string?> GetUploadsPlaylistIdAsync(string channelId, string apiKey, CancellationToken cancellationToken)
+    {
+        var requestUrl = YoutubeApiBaseUrl + string.Format(
+            YoutubeChannelsContentDetailsEndpoint,
+            Uri.EscapeDataString(channelId),
+            Uri.EscapeDataString(apiKey));
+
+        using var response = await _httpClient.GetAsync(requestUrl, cancellationToken);
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var reason = TryGetYoutubeApiErrorReason(payload);
+            var statusCode = (int)response.StatusCode;
+
+            if (IsQuotaErrorReason(reason))
+            {
+                SetApiBackoff(QuotaBackoffDuration, reason!);
+            }
+            else if (IsRateLimitErrorReason(reason))
+            {
+                SetApiBackoff(RateLimitBackoffDuration, reason!);
+            }
+
+            _logger.LogWarning(
+                "Failed to load YouTube channel content details for channel {ChannelId}. HTTP {StatusCode}. Reason: {Reason}",
+                channelId,
+                statusCode,
+                string.IsNullOrWhiteSpace(reason) ? "unknown" : reason);
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(payload);
+        if (!document.RootElement.TryGetProperty("items", out var itemsElement) ||
+            itemsElement.ValueKind != JsonValueKind.Array ||
+            itemsElement.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        var firstItem = itemsElement[0];
+        if (!firstItem.TryGetProperty("contentDetails", out var contentDetailsElement) ||
+            !contentDetailsElement.TryGetProperty("relatedPlaylists", out var relatedPlaylistsElement) ||
+            !relatedPlaylistsElement.TryGetProperty("uploads", out var uploadsElement))
+        {
+            return null;
+        }
+
+        var uploadsPlaylistId = uploadsElement.GetString()?.Trim();
+        return string.IsNullOrWhiteSpace(uploadsPlaylistId) ? null : uploadsPlaylistId;
     }
 
     private static bool LooksLikeYoutubeChannelId(string value)

@@ -104,10 +104,11 @@ public class DiscordBotService
     /// </summary>
     private Task LogAsync(LogMessage log)
     {
-        // Discord.Net can emit placeholder gateway warnings during reconnects and handshake churn.
-        // These are not actionable and only add noise to the bot logs.
-        if (ShouldSuppressGatewayNoise(log))
+        // Discord.Net can emit benign gateway warnings (e.g., uncached MESSAGE_UPDATE channel IDs).
+        // Keep visibility at Debug level instead of Warning to avoid alert fatigue.
+        if (TryGetDowngradedGatewayNoise(log, out var downgradedMessage))
         {
+            _logger.LogDebug("[{BotName}] {Source}: {Message}", "HaloCommunityBot", log.Source, downgradedMessage);
             return Task.CompletedTask;
         }
 
@@ -127,8 +128,10 @@ public class DiscordBotService
         return Task.CompletedTask;
     }
 
-    private static bool ShouldSuppressGatewayNoise(LogMessage log)
+    private static bool TryGetDowngradedGatewayNoise(LogMessage log, out string downgradedMessage)
     {
+        downgradedMessage = string.Empty;
+
         if (string.IsNullOrWhiteSpace(log.Source) ||
             !log.Source.Contains("Gateway", StringComparison.OrdinalIgnoreCase))
         {
@@ -136,12 +139,32 @@ public class DiscordBotService
         }
 
         var message = log.Message?.Trim();
-        return string.IsNullOrWhiteSpace(message) ||
-               string.Equals(message, "null", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(message, "(empty message)", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(message, "(null)", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(message, "<null>", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(message, "[null]", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(message) ||
+            string.Equals(message, "null", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(message, "(empty message)", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(message, "(null)", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(message, "<null>", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(message, "[null]", StringComparison.OrdinalIgnoreCase) ||
+            IsBenignUnknownChannelMessageUpdate(message))
+        {
+            downgradedMessage = string.IsNullOrWhiteSpace(message) ? "(gateway noise)" : message;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsBenignUnknownChannelMessageUpdate(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        // Discord can emit MESSAGE_UPDATE events for channels not currently cached.
+        // This does not impact slash command handling and is safe to ignore.
+        return message.Contains("Unknown Channel", StringComparison.OrdinalIgnoreCase) &&
+               message.Contains("MESSAGE_UPDATE", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
