@@ -220,7 +220,10 @@ If you deploy with `.github/workflows/deploy.yml`, configure these repository se
 
 | GitHub Secret | Runtime Environment Variable |
 | --- | --- |
+| `DEPLOY_SSH_KEY` | Used by GitHub Actions SSH setup to connect to the host |
+| `DEPLOY_HOST` | Used by GitHub Actions SSH/rsync/scp target host |
 | `DISCORD_TOKEN` | `HALOCOMMUNITYBOT_Bot__Token` |
+| `STATUS_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled` |
 | `STATUS_MONITOR_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId` |
 | `STATUS_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId` |
 | `YOUTUBE_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled` |

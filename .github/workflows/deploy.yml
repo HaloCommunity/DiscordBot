@@ -115,6 +115,7 @@ jobs:
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
           "printf '%s\\n' \
         'HALOCOMMUNITYBOT_Bot__Token=${{ secrets.DISCORD_TOKEN }}' \
+        'HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=${{ secrets.STATUS_MONITOR_ENABLED || 'true' }}' \
         'HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=${{ secrets.STATUS_MONITOR_CHANNEL_ID || '0' }}' \
         'HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=${{ secrets.STATUS_MONITOR_ROLE_ID || '0' }}' \
         'HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled=${{ secrets.YOUTUBE_MONITOR_ENABLED || 'false' }}' \
