@@ -10,6 +10,8 @@ public class FeedPostState
 
     public string? LastPostedItemId { get; set; }
 
+    public string? RecentVideoIds { get; set; }
+
     public DateTime? LastCheckedAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

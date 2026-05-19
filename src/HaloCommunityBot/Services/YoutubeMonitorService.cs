@@ -364,6 +364,11 @@ public class YoutubeMonitorService : BackgroundService
         }
 
         var pendingVideos = GetPendingVideos(feed.Videos, state, youtubeChannel.KeywordFilters);
+        
+        // Filter out videos already in cache to prevent re-posting
+        var cachedVideoIds = ParseRecentVideoCacheFromState(state);
+        pendingVideos = pendingVideos.Where(v => !cachedVideoIds.Contains(v.VideoId)).ToList();
+        
         if (pendingVideos.Count == 0)
         {
             state.LastCheckedAt = DateTime.UtcNow;
@@ -394,6 +399,12 @@ public class YoutubeMonitorService : BackgroundService
                 await forumChannel.CreatePostAsync(postTitle, text: body, tags: new ForumTag[] { resolvedForumTag });
                 state.LastPostedItemId = video.VideoId;
                 state.LastCheckedAt = DateTime.UtcNow;
+                
+                // Add to cache
+                var cachedIds = ParseRecentVideoCacheFromState(state);
+                cachedIds.Add(video.VideoId);
+                state.RecentVideoIds = SerializeRecentVideoCache(cachedIds, _config.YoutubeMonitor.RecentVideoCacheSize);
+                
                 await db.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation("Posted YouTube video {VideoId} from {ChannelName} to forum channel {ForumChannelId}.", video.VideoId, channelName, forumChannel.Id);
@@ -483,6 +494,26 @@ public class YoutubeMonitorService : BackgroundService
         }
 
         return $"[{channelName}] {videoTitle}";
+    }
+
+    private static HashSet<string> ParseRecentVideoCacheFromState(FeedPostState state)
+    {
+        if (string.IsNullOrWhiteSpace(state.RecentVideoIds))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return new HashSet<string>(
+            state.RecentVideoIds.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(id => id.Trim())
+                .Where(id => !string.IsNullOrWhiteSpace(id)),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string SerializeRecentVideoCache(HashSet<string> videoIds, int maxSize)
+    {
+        var list = videoIds.Take(maxSize).ToList();
+        return string.Join(";", list);
     }
 
     private static string NormalizeForumTagName(string channelName)

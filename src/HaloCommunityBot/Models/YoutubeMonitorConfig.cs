@@ -10,7 +10,9 @@ public class YoutubeMonitorConfig
 
     public string? YouTubeDataApiKey { get; set; }
 
-    public int PollIntervalMinutes { get; set; } = 60;
+    public int PollIntervalMinutes { get; set; } = 240;
+
+    public int RecentVideoCacheSize { get; set; } = 50;
 
     public string DefaultPostTitleTemplate { get; set; } = "[{ChannelName}] {VideoTitle}";
 
