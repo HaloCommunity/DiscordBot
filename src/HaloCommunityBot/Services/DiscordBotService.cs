@@ -192,18 +192,27 @@ public class DiscordBotService
                 _logger.LogInformation("Guild now available: {GuildName} ({GuildId})", guild.Name, guild.Id);
             }
             
-            if (_config.GuildId.HasValue)
+            try
             {
-                await _interactionService.RegisterCommandsToGuildAsync(_config.GuildId.Value);
-                _logger.LogInformation("Slash commands registered to guild {GuildId}", _config.GuildId.Value);
+                if (_config.GuildId.HasValue)
+                {
+                    await _interactionService.RegisterCommandsToGuildAsync(_config.GuildId.Value);
+                    _logger.LogInformation("Slash commands registered to guild {GuildId}", _config.GuildId.Value);
+                }
+                else
+                {
+                    await _interactionService.RegisterCommandsGloballyAsync();
+                    _logger.LogInformation("Slash commands registered globally");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                await _interactionService.RegisterCommandsGloballyAsync();
-                _logger.LogInformation("Slash commands registered globally");
+                _logger.LogError(ex, "Failed to register slash commands. Background services will still start.");
             }
-            
-            _readyCompletionSource.TrySetResult(true);
+            finally
+            {
+                _readyCompletionSource.TrySetResult(true);
+            }
         });
         
         return Task.CompletedTask;
