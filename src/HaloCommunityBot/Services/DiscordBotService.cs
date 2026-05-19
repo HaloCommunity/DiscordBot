@@ -253,10 +253,18 @@ public class DiscordBotService
 
     private Task DisconnectedAsync(Exception? ex)
     {
-        if (ex is null || _client.LoginState == LoginState.LoggedIn)
+        if (ex is null)
+        {
             _logger.LogInformation("[DiscordLifecycle] Disconnected from Discord (state: {State})", _client.ConnectionState);
+        }
         else
-            _logger.LogWarning(ex, "[DiscordLifecycle] Disconnected from Discord (state: {State})", _client.ConnectionState);
+        {
+            _logger.LogInformation(
+                "[DiscordLifecycle] Disconnected from Discord (state: {State}, reason: {Reason})",
+                _client.ConnectionState,
+                ex.Message);
+        }
+
         return Task.CompletedTask;
     }
 
