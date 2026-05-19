@@ -18,6 +18,7 @@ public class DiscordBotService
     private readonly BotConfig _config;
     private readonly ILogger<DiscordBotService> _logger;
     private readonly TaskCompletionSource<bool> _readyCompletionSource = new();
+    private int _commandsRegistered;
 
     public DateTime StartTime { get; private set; }
 
@@ -183,6 +184,12 @@ public class DiscordBotService
         // Don't block - register commands asynchronously
         _ = Task.Run(async () =>
         {
+            if (Interlocked.CompareExchange(ref _commandsRegistered, 1, 0) != 0)
+            {
+                _logger.LogDebug("[DiscordLifecycle] Skipping slash command re-registration on reconnect.");
+                return;
+            }
+
             // Wait a bit for guilds to be available
             await Task.Delay(2000);
             
@@ -207,6 +214,7 @@ public class DiscordBotService
             }
             catch (Exception ex)
             {
+                Interlocked.Exchange(ref _commandsRegistered, 0);
                 _logger.LogError(ex, "Failed to register slash commands. Background services will still start.");
             }
             finally
