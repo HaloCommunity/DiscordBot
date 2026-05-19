@@ -56,7 +56,7 @@ try
     using (var scope = host.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<HaloCommunityBotContext>();
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
 
     var botService = host.Services.GetRequiredService<DiscordBotService>();
