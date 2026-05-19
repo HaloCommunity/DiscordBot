@@ -98,7 +98,7 @@ jobs:
       run: |
         scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/halocommunitybot.service ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/halocommunitybot.service
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo -n mv /tmp/halocommunitybot.service /etc/systemd/system/halocommunitybot.service && sudo -n systemctl daemon-reload"
+          "sudo -n mv /tmp/halocommunitybot.service /etc/systemd/system/halocommunitybot.service && sudo -n chown root:root /etc/systemd/system/halocommunitybot.service && sudo -n chmod 644 /etc/systemd/system/halocommunitybot.service && sudo -n systemctl daemon-reload"
 
     - name: Deploy journald retention policy
       run: |
