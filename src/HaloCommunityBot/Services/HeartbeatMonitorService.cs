@@ -67,7 +67,7 @@ public class HeartbeatMonitorService : BackgroundService
             try
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(2, heartbeat.TimeoutSeconds)));
-                using var response = await _httpClient.GetAsync(heartbeat.PushUrl, timeout.Token);
+                using var response = await _httpClient.GetAsync(heartbeat.PushUrl, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("Sent final heartbeat ping during shutdown.");
@@ -94,7 +94,7 @@ public class HeartbeatMonitorService : BackgroundService
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(2, heartbeat.TimeoutSeconds)));
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeout.Token);
-            using var response = await _httpClient.GetAsync(heartbeat.PushUrl, linked.Token);
+            using var response = await _httpClient.GetAsync(heartbeat.PushUrl, HttpCompletionOption.ResponseHeadersRead, linked.Token);
 
             if (!response.IsSuccessStatusCode)
             {
