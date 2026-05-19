@@ -190,17 +190,26 @@ public class DiscordBotService
                 return;
             }
 
-            // Wait a bit for guilds to be available
-            await Task.Delay(2000);
-            
-            _logger.LogInformation("After delay, client has {GuildCount} guilds", _client.Guilds.Count);
-            foreach (var guild in _client.Guilds)
-            {
-                _logger.LogInformation("Guild now available: {GuildName} ({GuildId})", guild.Name, guild.Id);
-            }
-            
             try
             {
+                // Wait a bit for guilds to be available
+                await Task.Delay(2000);
+
+                if (_client.ConnectionState != ConnectionState.Connected)
+                {
+                    Interlocked.Exchange(ref _commandsRegistered, 0);
+                    _logger.LogInformation(
+                        "Skipping slash command registration because client state is {State}. Will retry on next Ready.",
+                        _client.ConnectionState);
+                    return;
+                }
+
+                _logger.LogInformation("After delay, client has {GuildCount} guilds", _client.Guilds.Count);
+                foreach (var guild in _client.Guilds)
+                {
+                    _logger.LogInformation("Guild now available: {GuildName} ({GuildId})", guild.Name, guild.Id);
+                }
+
                 if (_config.GuildId.HasValue)
                 {
                     await _interactionService.RegisterCommandsToGuildAsync(_config.GuildId.Value);
@@ -215,7 +224,17 @@ public class DiscordBotService
             catch (Exception ex)
             {
                 Interlocked.Exchange(ref _commandsRegistered, 0);
-                _logger.LogError(ex, "Failed to register slash commands. Background services will still start.");
+                if (_client.ConnectionState != ConnectionState.Connected)
+                {
+                    _logger.LogInformation(
+                        ex,
+                        "Skipped slash command registration due to transient disconnect (state: {State}). Will retry on next Ready.",
+                        _client.ConnectionState);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Failed to register slash commands. Background services will still start.");
+                }
             }
             finally
             {
@@ -234,7 +253,7 @@ public class DiscordBotService
 
     private Task DisconnectedAsync(Exception? ex)
     {
-        if (ex is null)
+        if (ex is null || _client.LoginState == LoginState.LoggedIn)
             _logger.LogInformation("[DiscordLifecycle] Disconnected from Discord (state: {State})", _client.ConnectionState);
         else
             _logger.LogWarning(ex, "[DiscordLifecycle] Disconnected from Discord (state: {State})", _client.ConnectionState);
