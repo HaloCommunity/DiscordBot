@@ -109,7 +109,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DiscordBotService>();
         services.AddHttpClient<HeartbeatMonitorService>();
         services.AddHostedService<HaloStatusMonitorService>();
-        services.AddHostedService<YoutubeMonitorService>();
+        if (botConfig.YoutubeMonitor.Enabled)
+        {
+            services.AddHostedService<YoutubeMonitorService>();
+        }
         services.AddHostedService<HeartbeatMonitorService>();
 
         return services;

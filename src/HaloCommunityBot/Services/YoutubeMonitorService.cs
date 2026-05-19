@@ -247,7 +247,11 @@ public class YoutubeMonitorService : BackgroundService
 
     private async Task EnsureSeededAsync(HaloCommunityBotContext db, CancellationToken cancellationToken)
     {
-        if (!await db.YoutubeMonitorSettings.AnyAsync(cancellationToken))
+        var existingSettings = await db.YoutubeMonitorSettings
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingSettings == null)
         {
             var youtubeConfig = _config.YoutubeMonitor;
             db.YoutubeMonitorSettings.Add(new YoutubeMonitorSettings
@@ -261,6 +265,11 @@ public class YoutubeMonitorService : BackgroundService
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             });
+        }
+        else if (existingSettings.PollIntervalMinutes != _config.YoutubeMonitor.PollIntervalMinutes)
+        {
+            existingSettings.PollIntervalMinutes = _config.YoutubeMonitor.PollIntervalMinutes;
+            existingSettings.UpdatedAt = DateTime.UtcNow;
         }
 
         if (!await db.YoutubeTrackedChannels.AnyAsync(cancellationToken) && _config.YoutubeMonitor.Channels.Count > 0)
