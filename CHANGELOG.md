@@ -5,6 +5,12 @@ All notable changes to HaloCommunityBot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.45] - 2026-05-21
+
+### Changed
+
+* Add observed-feed logging for reconciliation dashboard
+
 ## [1.1.44] - 2026-05-19
 
 ### Changed

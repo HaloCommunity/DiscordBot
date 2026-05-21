@@ -124,6 +124,19 @@ public class HaloStatusMonitorService : BackgroundService
             if (string.IsNullOrWhiteSpace(id))
                 continue;
 
+            var title = item.Element("title")?.Value?.Trim() ?? "Halo Services Status Update";
+            DateTimeOffset observedPublishedAt = DateTimeOffset.UtcNow;
+            if (TryParsePubDate(item, out var parsedPublishedAt))
+            {
+                observedPublishedAt = parsedPublishedAt;
+            }
+
+            _logger.LogInformation(
+                "Observed Halo status candidate {ItemId} ({Title}) published {PublishedAtUtc}.",
+                id,
+                title,
+                observedPublishedAt.UtcDateTime);
+
             await PostStatusUpdateAsync(item);
 
             state.LastPostedItemId = id;
@@ -216,7 +229,8 @@ public class HaloStatusMonitorService : BackgroundService
             mentionText = $"<@&{_config.StatusMonitor.RoleId}>";
 
         await channel.SendMessageAsync(text: mentionText, embed: embed.Build());
-        _logger.LogInformation("Posted Halo status update: {Title}", title);
+        var itemId = GetItemId(item);
+        _logger.LogInformation("Posted Halo status update {ItemId}: {Title}", itemId, title);
     }
 
     public override void Dispose()
