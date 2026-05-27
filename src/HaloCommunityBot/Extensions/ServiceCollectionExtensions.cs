@@ -1,4 +1,4 @@
-﻿using Discord;
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Models;
@@ -113,7 +113,9 @@ public static class ServiceCollectionExtensions
         {
             services.AddHostedService<YoutubeMonitorService>();
         }
+        services.AddHostedService<YoutubeFeedUrlsEndpointHostedService>();
         services.AddHostedService<HeartbeatMonitorService>();
+        services.AddHostedService<MetricsHostedService>();
 
         return services;
     }

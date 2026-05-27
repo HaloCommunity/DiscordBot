@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DiscordBot.Core;
 using Discord;
 using Discord.WebSocket;
 using DiscordBot.Core.Data;
@@ -173,6 +174,8 @@ public class YoutubeMonitorService : BackgroundService
 
             normalizedChannels.Add(trackedChannel);
         }
+
+        BotMetrics.YoutubeTrackedChannels.Set(normalizedChannels.Count);
 
         if (invalidChannels.Count > 0 || normalizedUpdated > 0)
         {
@@ -749,6 +752,7 @@ public class YoutubeMonitorService : BackgroundService
             {
                 backoffUntilUtc = _youtubeApiBackoffUntilUtc;
                 backoffReason = string.IsNullOrWhiteSpace(_youtubeApiBackoffReason) ? "unknown" : _youtubeApiBackoffReason;
+                BotMetrics.YoutubeApiBackoffActive.Set(1);
                 return true;
             }
 
@@ -756,6 +760,7 @@ public class YoutubeMonitorService : BackgroundService
             _youtubeApiBackoffReason = null;
             backoffUntilUtc = DateTime.MinValue;
             backoffReason = string.Empty;
+            BotMetrics.YoutubeApiBackoffActive.Set(0);
             return false;
         }
     }
@@ -774,6 +779,8 @@ public class YoutubeMonitorService : BackgroundService
             _youtubeApiBackoffUntilUtc = until;
             _youtubeApiBackoffReason = reason;
         }
+
+        BotMetrics.YoutubeApiBackoffActive.Set(1);
 
         _logger.LogWarning(
             "YouTube Data API backoff activated for {BackoffMinutes} minute(s) due to {Reason}. Next retry after {BackoffUntilUtc:o}.",

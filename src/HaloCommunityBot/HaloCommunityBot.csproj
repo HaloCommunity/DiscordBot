@@ -5,7 +5,7 @@
     <AssemblyName>HaloCommunityBot</AssemblyName>
     <OutputType>Exe</OutputType>
     <UserSecretsId>ca866cec-4adc-4fb2-b01f-ffc1982d3939</UserSecretsId>
-    <Version>1.1.45</Version>
+    <Version>1.1.47</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net"/>
@@ -22,6 +22,7 @@
     <PackageReference Include="Serilog.Sinks.Console"/>
     <PackageReference Include="Serilog.Sinks.File"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design"/>
+    <PackageReference Include="prometheus-net"/>
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.Development.json">
