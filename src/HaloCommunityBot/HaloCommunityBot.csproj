@@ -5,16 +5,10 @@
     <AssemblyName>HaloCommunityBot</AssemblyName>
     <OutputType>Exe</OutputType>
     <UserSecretsId>ca866cec-4adc-4fb2-b01f-ffc1982d3939</UserSecretsId>
-    <Version>1.1.49</Version>
+    <Version>1.1.50</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net"/>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
-    <PackageReference Include="Microsoft.Extensions.Configuration"/>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json"/>
-    <PackageReference Include="Microsoft.Extensions.Logging"/>
-    <PackageReference Include="Microsoft.Extensions.Hosting"/>
-    <PackageReference Include="Microsoft.Extensions.Http"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite"/>
     <PackageReference Include="Serilog"/>
@@ -23,6 +17,9 @@
     <PackageReference Include="Serilog.Sinks.File"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design"/>
     <PackageReference Include="prometheus-net"/>
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.Development.json">

@@ -1,9 +1,9 @@
-using System.Net;
-using System.Text;
-using System.Text.Json;
 using DiscordBot.Core;
 using DiscordBot.Core.Data;
 using DiscordBot.Models;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,8 +20,7 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly BotConfig _botConfig;
     private readonly ILogger<YoutubeFeedUrlsEndpointHostedService> _logger;
-    private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
-    private HttpListener? _listener;
+    private WebApplication? _app;
 
     public YoutubeFeedUrlsEndpointHostedService(
         IConfiguration configuration,
@@ -37,87 +36,54 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _listener = new HttpListener();
-        _listener.Prefixes.Add($"http://*:{_port}/");
-        _listener.Start();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            Args = Array.Empty<string>(),
+            ApplicationName = typeof(YoutubeFeedUrlsEndpointHostedService).Assembly.FullName
+        });
+
+        builder.WebHost.UseUrls($"http://0.0.0.0:{_port}");
+        builder.Logging.ClearProviders();
+
+        var app = builder.Build();
+        _app = app;
+
+        app.MapGet(EndpointPath, async (CancellationToken cancellationToken) =>
+        {
+            var payload = await BuildPayloadAsync(cancellationToken);
+            return Results.Json(payload);
+        });
+
+        app.MapGet("/", () => Results.NotFound());
+
         BotMetrics.YoutubeFeedUrlsEndpointUp.Set(1);
-
         _logger.LogInformation("YouTube feed URL endpoint started on port {Port} at {Path}.", _port, EndpointPath);
-
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            HttpListenerContext context;
-            try
-            {
-                context = await _listener.GetContextAsync().WaitAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-            catch (HttpListenerException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            _ = Task.Run(() => ProcessRequestAsync(context, stoppingToken), stoppingToken);
-        }
-    }
-
-    public override Task StopAsync(CancellationToken cancellationToken)
-    {
-        BotMetrics.YoutubeFeedUrlsEndpointUp.Set(0);
-
-        if (_listener is not null)
-        {
-            if (_listener.IsListening)
-            {
-                _listener.Stop();
-            }
-
-            _listener.Close();
-            _listener = null;
-        }
-
-        return base.StopAsync(cancellationToken);
-    }
-
-    private async Task ProcessRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
-    {
-        var response = context.Response;
-
-        if (!HttpMethodsMatchGet(context.Request.HttpMethod) || !PathMatches(context.Request.RawUrl))
-        {
-            response.StatusCode = (int)HttpStatusCode.NotFound;
-            response.Close();
-            return;
-        }
 
         try
         {
-            var payload = await BuildPayloadAsync(cancellationToken);
-            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload, _jsonOptions));
-
-            response.StatusCode = (int)HttpStatusCode.OK;
-            response.ContentType = "application/json; charset=utf-8";
-            response.ContentLength64 = bytes.Length;
-            await response.OutputStream.WriteAsync(bytes, cancellationToken);
-            response.Close();
+            await app.RunAsync(stoppingToken);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            _logger.LogError(ex, "Failed to serve YouTube feed URL endpoint response.");
-
-            if (response.OutputStream.CanWrite)
-            {
-                response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                response.Close();
-            }
         }
+        finally
+        {
+            BotMetrics.YoutubeFeedUrlsEndpointUp.Set(0);
+        }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        BotMetrics.YoutubeFeedUrlsEndpointUp.Set(0);
+
+        if (_app is not null)
+        {
+            await _app.StopAsync(cancellationToken);
+            await _app.DisposeAsync();
+            _app = null;
+        }
+
+        await base.StopAsync(cancellationToken);
     }
 
     private async Task<YoutubeFeedUrlsPayload> BuildPayloadAsync(CancellationToken cancellationToken)
@@ -132,14 +98,14 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
 
         var channels = await db.YoutubeTrackedChannels
             .AsNoTracking()
-            .Where(x => x.IsEnabled)
             .OrderBy(x => x.ChannelName)
             .ToListAsync(cancellationToken);
 
+        var enabledChannels = channels.Where(x => x.IsEnabled).ToList();
         var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var unresolved = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var channel in channels)
+        foreach (var channel in enabledChannels)
         {
             var original = channel.ChannelId?.Trim();
             if (string.IsNullOrWhiteSpace(original))
@@ -175,7 +141,7 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
             unresolved.Add(original);
         }
 
-        BotMetrics.YoutubeTrackedChannels.Set(channels.Count);
+        BotMetrics.YoutubeTrackedChannels.Set(enabledChannels.Count);
         BotMetrics.YoutubeFeedUrlsExposed.Set(urls.Count);
         BotMetrics.YoutubeUnresolvedReferences.Set(unresolved.Count);
 
@@ -184,22 +150,9 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
             GeneratedAtUtc: DateTime.UtcNow,
             YoutubeMonitorEnabled: settings?.Enabled ?? _botConfig.YoutubeMonitor.Enabled,
             ConfiguredChannelCount: channels.Count,
+            EnabledChannelCount: enabledChannels.Count,
             FeedUrls: urls.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
             UnresolvedReferences: unresolved.OrderBy(x => x, StringComparer.Ordinal).ToArray());
-    }
-
-    private static bool HttpMethodsMatchGet(string? method)
-        => string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase);
-
-    private static bool PathMatches(string? rawUrl)
-    {
-        if (string.IsNullOrWhiteSpace(rawUrl))
-        {
-            return false;
-        }
-
-        return rawUrl.Equals(EndpointPath, StringComparison.OrdinalIgnoreCase)
-            || rawUrl.StartsWith(EndpointPath + "?", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record YoutubeFeedUrlsPayload(
@@ -207,6 +160,7 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
         DateTime GeneratedAtUtc,
         bool YoutubeMonitorEnabled,
         int ConfiguredChannelCount,
+        int EnabledChannelCount,
         string[] FeedUrls,
         string[] UnresolvedReferences);
 }
