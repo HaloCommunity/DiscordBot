@@ -43,4 +43,28 @@ internal static class BotMetrics
             "Unix timestamp of the last YouTube channel poll attempt.",
             new GaugeConfiguration { LabelNames = ServiceLabelNames })
         .WithLabels(ServiceLabelValues);
+
+    /// <summary>1 while the YouTube feed URL observability endpoint is listening; 0 otherwise.</summary>
+    public static readonly IGauge YoutubeFeedUrlsEndpointUp = Metrics
+        .CreateGauge(
+            "bot_youtube_feed_urls_endpoint_up",
+            "1 while the YouTube feed URL observability endpoint is running; 0 otherwise.",
+            new GaugeConfiguration { LabelNames = ServiceLabelNames })
+        .WithLabels(ServiceLabelValues);
+
+    /// <summary>Number of YouTube Atom feed URLs currently exposed by the observability endpoint.</summary>
+    public static readonly IGauge YoutubeFeedUrlsExposed = Metrics
+        .CreateGauge(
+            "bot_youtube_feed_urls_exposed_total",
+            "Number of YouTube Atom feed URLs currently exposed by the observability endpoint.",
+            new GaugeConfiguration { LabelNames = ServiceLabelNames })
+        .WithLabels(ServiceLabelValues);
+
+    /// <summary>Number of enabled YouTube references that could not be resolved to a feed URL.</summary>
+    public static readonly IGauge YoutubeUnresolvedReferences = Metrics
+        .CreateGauge(
+            "bot_youtube_unresolved_references_total",
+            "Number of enabled YouTube references that could not be resolved to a feed URL.",
+            new GaugeConfiguration { LabelNames = ServiceLabelNames })
+        .WithLabels(ServiceLabelValues);
 }

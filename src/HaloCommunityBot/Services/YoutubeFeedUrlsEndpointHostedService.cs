@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using DiscordBot.Core;
 using DiscordBot.Core.Data;
 using DiscordBot.Models;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,7 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://*:{_port}/");
         _listener.Start();
+        BotMetrics.YoutubeFeedUrlsEndpointUp.Set(1);
 
         _logger.LogInformation("YouTube feed URL endpoint started on port {Port} at {Path}.", _port, EndpointPath);
 
@@ -68,6 +70,8 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
+        BotMetrics.YoutubeFeedUrlsEndpointUp.Set(0);
+
         if (_listener is not null)
         {
             if (_listener.IsListening)
@@ -170,6 +174,10 @@ internal sealed class YoutubeFeedUrlsEndpointHostedService : BackgroundService
 
             unresolved.Add(original);
         }
+
+        BotMetrics.YoutubeTrackedChannels.Set(channels.Count);
+        BotMetrics.YoutubeFeedUrlsExposed.Set(urls.Count);
+        BotMetrics.YoutubeUnresolvedReferences.Set(unresolved.Count);
 
         return new YoutubeFeedUrlsPayload(
             Service: "halo-bot",
