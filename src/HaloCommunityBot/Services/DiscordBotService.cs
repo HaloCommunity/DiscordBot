@@ -1,9 +1,11 @@
 ﻿using Discord;
+using Discord.Net;
 using Discord.WebSocket;
 using Discord.Interactions;
 using DiscordBot.Models;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
+using System.Net;
 
 namespace DiscordBot.Services;
 
@@ -231,6 +233,17 @@ public class DiscordBotService
                         "Skipped slash command registration due to transient disconnect (state: {State}). Will retry on next Ready.",
                         _client.ConnectionState);
                 }
+                else if (TryClassifySlashRegistrationFailure(ex, out var category, out var guidance, out var httpCode, out var discordCode))
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Slash command registration failed: {Category}. GuildId={GuildId}, HttpCode={HttpCode}, DiscordCode={DiscordCode}. {Guidance}",
+                        category,
+                        _config.GuildId,
+                        httpCode,
+                        discordCode,
+                        guidance);
+                }
                 else
                 {
                     _logger.LogError(ex, "Failed to register slash commands. Background services will still start.");
@@ -243,6 +256,61 @@ public class DiscordBotService
         });
         
         return Task.CompletedTask;
+    }
+
+    private static bool TryClassifySlashRegistrationFailure(
+        Exception ex,
+        out string category,
+        out string guidance,
+        out HttpStatusCode? httpCode,
+        out DiscordErrorCode? discordCode)
+    {
+        category = string.Empty;
+        guidance = string.Empty;
+        httpCode = null;
+        discordCode = null;
+
+        var httpException = FindHttpException(ex);
+        if (httpException is null)
+        {
+            return false;
+        }
+
+        httpCode = httpException.HttpCode;
+        discordCode = httpException.DiscordCode;
+
+        if (httpException.HttpCode == HttpStatusCode.Forbidden)
+        {
+            category = "Missing access/permissions for guild command registration";
+            guidance = "Verify the bot is in the target guild and re-authorize with both 'bot' and 'applications.commands' scopes for this application.";
+            return true;
+        }
+
+        if (httpException.HttpCode == HttpStatusCode.NotFound)
+        {
+            category = "Target guild or endpoint not found";
+            guidance = "Verify HALOCOMMUNITYBOT_Bot__GuildId points to the guild where the app is installed.";
+            return true;
+        }
+
+        if (httpException.HttpCode == HttpStatusCode.Unauthorized)
+        {
+            category = "Unauthorized when registering commands";
+            guidance = "Verify bot token and application identity are correct and not rotated/out of sync.";
+            return true;
+        }
+
+        return false;
+    }
+
+    private static HttpException? FindHttpException(Exception ex)
+    {
+        if (ex is HttpException direct)
+        {
+            return direct;
+        }
+
+        return ex.InnerException as HttpException;
     }
 
     private Task ConnectedAsync()
