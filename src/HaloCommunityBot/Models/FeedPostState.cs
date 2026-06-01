@@ -12,6 +12,8 @@ public class FeedPostState
 
     public string? RecentVideoIds { get; set; }
 
+    public string? RecentIncidentMessageIds { get; set; }
+
     public DateTime? LastCheckedAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

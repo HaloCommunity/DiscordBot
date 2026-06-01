@@ -38,6 +38,9 @@ namespace HaloCommunityBot.Migrations
                     b.Property<string>("LastPostedItemId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RecentIncidentMessageIds")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("RecentVideoIds")
                         .HasColumnType("TEXT");
 

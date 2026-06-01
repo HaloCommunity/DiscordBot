@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace DiscordBot.Services;
@@ -16,6 +17,8 @@ namespace DiscordBot.Services;
 /// </summary>
 public class HaloStatusMonitorService : BackgroundService
 {
+    private const int MaxTrackedIncidentThreads = 50;
+
     private readonly DiscordSocketClient _client;
     private readonly BotConfig _config;
     private readonly IServiceProvider _serviceProvider;
@@ -103,6 +106,7 @@ public class HaloStatusMonitorService : BackgroundService
             {
                 state.LastPostedItemId = latestItemId;
                 state.LastCheckedAt = DateTime.UtcNow;
+                state.RecentIncidentMessageIds = null;
                 await db.SaveChangesAsync(cancellationToken);
                 _logger.LogInformation("Halo status monitor initialised — latest feed item {ItemId} stored as baseline.", latestItemId);
             }
@@ -118,6 +122,8 @@ public class HaloStatusMonitorService : BackgroundService
             return;
         }
 
+        var incidentMessageMap = DeserializeIncidentMessageMap(state.RecentIncidentMessageIds);
+
         foreach (var item in pendingItems)
         {
             var id = GetItemId(item);
@@ -125,6 +131,7 @@ public class HaloStatusMonitorService : BackgroundService
                 continue;
 
             var title = item.Element("title")?.Value?.Trim() ?? "Halo Services Status Update";
+            var incidentKey = GetIncidentKey(item);
             DateTimeOffset observedPublishedAt = DateTimeOffset.UtcNow;
             if (TryParsePubDate(item, out var parsedPublishedAt))
             {
@@ -137,7 +144,23 @@ public class HaloStatusMonitorService : BackgroundService
                 title,
                 observedPublishedAt.UtcDateTime);
 
-            await PostStatusUpdateAsync(item);
+            incidentMessageMap.TryGetValue(incidentKey, out var replyToMessageId);
+            var postedMessageId = await PostStatusUpdateAsync(item, replyToMessageId);
+
+            if (postedMessageId != 0)
+            {
+                if (replyToMessageId == 0)
+                {
+                    incidentMessageMap[incidentKey] = postedMessageId;
+                    TrimIncidentMessageMap(incidentMessageMap);
+                }
+                else if (IsResolvedUpdate(title))
+                {
+                    incidentMessageMap.Remove(incidentKey);
+                }
+
+                state.RecentIncidentMessageIds = SerializeIncidentMessageMap(incidentMessageMap);
+            }
 
             state.LastPostedItemId = id;
             state.LastCheckedAt = DateTime.UtcNow;
@@ -189,13 +212,74 @@ public class HaloStatusMonitorService : BackgroundService
         return false;
     }
 
-    private async Task PostStatusUpdateAsync(XElement item)
+    private static string GetIncidentKey(XElement item)
+    {
+        var link = item.Element("link")?.Value?.Trim();
+        if (!string.IsNullOrWhiteSpace(link))
+            return link;
+
+        var guid = item.Element("guid")?.Value?.Trim();
+        if (!string.IsNullOrWhiteSpace(guid))
+            return guid;
+
+        var title = item.Element("title")?.Value?.Trim();
+        return string.IsNullOrWhiteSpace(title) ? string.Empty : title;
+    }
+
+    private static Dictionary<string, ulong> DeserializeIncidentMessageMap(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, ulong>>(raw);
+            return parsed is null
+                ? new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, ulong>(parsed, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string? SerializeIncidentMessageMap(Dictionary<string, ulong> map)
+    {
+        if (map.Count == 0)
+            return null;
+
+        return JsonSerializer.Serialize(map);
+    }
+
+    private static void TrimIncidentMessageMap(Dictionary<string, ulong> map)
+    {
+        if (map.Count <= MaxTrackedIncidentThreads)
+            return;
+
+        var overflow = map.Count - MaxTrackedIncidentThreads;
+        foreach (var key in map.Keys.Take(overflow).ToList())
+        {
+            map.Remove(key);
+        }
+    }
+
+    private static bool IsResolvedUpdate(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return false;
+
+        var normalized = title.Trim().ToLowerInvariant();
+        return normalized.Contains("resolved") || normalized.Contains("monitoring");
+    }
+
+    private async Task<ulong> PostStatusUpdateAsync(XElement item, ulong replyToMessageId)
     {
         if (_client.GetChannel(_config.StatusMonitor.ChannelId) is not IMessageChannel channel)
         {
             _logger.LogWarning("Status monitor channel {ChannelId} was not found or is not a text channel.",
                 _config.StatusMonitor.ChannelId);
-            return;
+            return 0;
         }
 
         var title = item.Element("title")?.Value?.Trim() ?? "Halo Services Status Update";
@@ -225,12 +309,22 @@ public class HaloStatusMonitorService : BackgroundService
             embed.WithUrl(link);
 
         string? mentionText = null;
-        if (_config.StatusMonitor.RoleId != 0)
+        if (_config.StatusMonitor.RoleId != 0 && replyToMessageId == 0)
             mentionText = $"<@&{_config.StatusMonitor.RoleId}>";
 
-        await channel.SendMessageAsync(text: mentionText, embed: embed.Build());
+        var messageReference = replyToMessageId == 0
+            ? null
+            : new MessageReference(replyToMessageId, _config.StatusMonitor.ChannelId);
+
+        var sent = await channel.SendMessageAsync(
+            text: mentionText,
+            embed: embed.Build(),
+            messageReference: messageReference,
+            allowedMentions: AllowedMentions.None);
+
         var itemId = GetItemId(item);
         _logger.LogInformation("Posted Halo status update {ItemId}: {Title}", itemId, title);
+        return sent.Id;
     }
 
     public override void Dispose()

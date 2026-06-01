@@ -138,7 +138,7 @@ Set `StatusMonitor:Enabled` to `true` and configure:
 | `ChannelId` | Channel where status updates are posted |
 | `RoleId` | Role to mention on status updates (set `0` to disable mentions) |
 | `FeedUrl` | RSS feed URL (defaults to Halo Services Solutions) |
-| `PollIntervalMinutes` | How often to check for new feed items (default: 5) |
+| `PollIntervalMinutes` | How often to check for new feed items (code default: 1, appsettings template: 5) |
 
 ### YouTube Monitor
 
@@ -195,23 +195,35 @@ In production, settings are provided via environment variables using the `HALOCO
 
 ```text
 HALOCOMMUNITYBOT_Bot__Token=your-token-here
+HALOCOMMUNITYBOT_Bot__Prefix=!
 HALOCOMMUNITYBOT_Bot__GuildId=1234567890
+HALOCOMMUNITYBOT_Bot__AllowPrefixCommands=false
 HALOCOMMUNITYBOT_Bot__Cooldowns__UserInfo=5
 HALOCOMMUNITYBOT_Bot__Cooldowns__Status=15
 HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled=true
 HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId=1234567890
 HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId=1234567890
+HALOCOMMUNITYBOT_Bot__StatusMonitor__FeedUrl=https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss
+HALOCOMMUNITYBOT_Bot__StatusMonitor__PollIntervalMinutes=5
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled=true
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId=1234567890
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RoleId=1234567890
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey=your-youtube-data-api-key
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes=15
+HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RecentVideoCacheSize=50
 HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate=[{ChannelName}] {VideoTitle}
 HALOCOMMUNITYBOT_Bot__Heartbeat__Enabled=true
 HALOCOMMUNITYBOT_Bot__Heartbeat__PushUrl=https://kuma.example.com/api/push/xxxxx
 HALOCOMMUNITYBOT_Bot__Heartbeat__IntervalSeconds=60
 HALOCOMMUNITYBOT_Bot__Heartbeat__StartupDelaySeconds=15
 HALOCOMMUNITYBOT_Bot__Heartbeat__TimeoutSeconds=10
+```
+
+Example list binding for allowed fun channels:
+
+```text
+HALOCOMMUNITYBOT_Bot__AllowedFunChannels__0=1075755533048492082
+HALOCOMMUNITYBOT_Bot__AllowedFunChannels__1=123456789012345678
 ```
 
 ### GitHub Secrets (Deploy Workflow)
@@ -223,15 +235,20 @@ If you deploy with `.github/workflows/deploy.yml`, configure these repository se
 | `DEPLOY_SSH_KEY` | Used by GitHub Actions SSH setup to connect to the host |
 | `DEPLOY_HOST` | Used by GitHub Actions SSH/rsync/scp target host |
 | `DISCORD_TOKEN` | `HALOCOMMUNITYBOT_Bot__Token` |
+| `BOT_PREFIX` | `HALOCOMMUNITYBOT_Bot__Prefix` |
 | `GUILD_ID` | `HALOCOMMUNITYBOT_Bot__GuildId` |
+| `ALLOW_PREFIX_COMMANDS` | `HALOCOMMUNITYBOT_Bot__AllowPrefixCommands` |
 | `STATUS_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__Enabled` |
 | `STATUS_MONITOR_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__ChannelId` |
 | `STATUS_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__RoleId` |
+| `STATUS_MONITOR_FEED_URL` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__FeedUrl` |
+| `STATUS_MONITOR_POLL_INTERVAL_MINUTES` | `HALOCOMMUNITYBOT_Bot__StatusMonitor__PollIntervalMinutes` |
 | `YOUTUBE_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__Enabled` |
 | `YOUTUBE_FORUM_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__ForumChannelId` |
 | `YOUTUBE_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RoleId` |
 | `YOUTUBE_DATA_API_KEY` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey` |
 | `YOUTUBE_POLL_INTERVAL_MINUTES` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes` |
+| `YOUTUBE_RECENT_VIDEO_CACHE_SIZE` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RecentVideoCacheSize` |
 | `YOUTUBE_DEFAULT_POST_TITLE_TEMPLATE` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate` |
 | `HEARTBEAT_ENABLED` | `HALOCOMMUNITYBOT_Bot__Heartbeat__Enabled` |
 | `HEARTBEAT_PUSH_URL` | `HALOCOMMUNITYBOT_Bot__Heartbeat__PushUrl` |
