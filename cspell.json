@@ -46,6 +46,7 @@
     "contextcommand",
     "contextservices",
     "Cooldown",
+    "Cooldowns",
     "csproj",
     "deployer",
     "deps",
