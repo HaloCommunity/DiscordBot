@@ -1,4 +1,5 @@
 using Discord;
+using Discord.Net;
 using Discord.WebSocket;
 using DiscordBot.Core.Data;
 using DiscordBot.Models;
@@ -145,16 +146,18 @@ public class HaloStatusMonitorService : BackgroundService
                 observedPublishedAt.UtcDateTime);
 
             incidentMessageMap.TryGetValue(incidentKey, out var replyToMessageId);
-            var postedMessageId = await PostStatusUpdateAsync(item, replyToMessageId);
+            var postResult = await PostStatusUpdateAsync(item, replyToMessageId);
+            var postedMessageId = postResult.MessageId;
 
             if (postedMessageId != 0)
             {
-                if (replyToMessageId == 0)
+                if (!postResult.UsedReply)
                 {
                     incidentMessageMap[incidentKey] = postedMessageId;
                     TrimIncidentMessageMap(incidentMessageMap);
                 }
-                else if (IsResolvedUpdate(title))
+
+                if (IsResolvedUpdate(title))
                 {
                     incidentMessageMap.Remove(incidentKey);
                 }
@@ -273,13 +276,13 @@ public class HaloStatusMonitorService : BackgroundService
         return normalized.Contains("resolved") || normalized.Contains("monitoring");
     }
 
-    private async Task<ulong> PostStatusUpdateAsync(XElement item, ulong replyToMessageId)
+    private async Task<PostStatusResult> PostStatusUpdateAsync(XElement item, ulong replyToMessageId)
     {
         if (_client.GetChannel(_config.StatusMonitor.ChannelId) is not IMessageChannel channel)
         {
             _logger.LogWarning("Status monitor channel {ChannelId} was not found or is not a text channel.",
                 _config.StatusMonitor.ChannelId);
-            return 0;
+            return PostStatusResult.None;
         }
 
         var title = item.Element("title")?.Value?.Trim() ?? "Halo Services Status Update";
@@ -312,19 +315,42 @@ public class HaloStatusMonitorService : BackgroundService
         if (_config.StatusMonitor.RoleId != 0 && replyToMessageId == 0)
             mentionText = $"<@&{_config.StatusMonitor.RoleId}>";
 
-        var messageReference = replyToMessageId == 0
-            ? null
-            : new MessageReference(replyToMessageId, _config.StatusMonitor.ChannelId);
+        IUserMessage sent;
+        var usedReply = false;
 
-        var sent = await channel.SendMessageAsync(
-            text: mentionText,
-            embed: embed.Build(),
-            messageReference: messageReference,
-            allowedMentions: AllowedMentions.None);
+        if (replyToMessageId != 0)
+        {
+            try
+            {
+                sent = await channel.SendMessageAsync(
+                    embed: embed.Build(),
+                    messageReference: new MessageReference(replyToMessageId, _config.StatusMonitor.ChannelId, failIfNotExists: false),
+                    allowedMentions: AllowedMentions.None);
+                usedReply = true;
+            }
+            catch (HttpException ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to reply to Halo status message {ReplyToMessageId}; posting standalone update instead.",
+                    replyToMessageId);
+
+                sent = await channel.SendMessageAsync(embed: embed.Build(), allowedMentions: AllowedMentions.None);
+            }
+        }
+        else
+        {
+            sent = await channel.SendMessageAsync(text: mentionText, embed: embed.Build());
+        }
 
         var itemId = GetItemId(item);
         _logger.LogInformation("Posted Halo status update {ItemId}: {Title}", itemId, title);
-        return sent.Id;
+        return new PostStatusResult(sent.Id, usedReply);
+    }
+
+    private readonly record struct PostStatusResult(ulong MessageId, bool UsedReply)
+    {
+        public static PostStatusResult None => new(0, false);
     }
 
     public override void Dispose()
