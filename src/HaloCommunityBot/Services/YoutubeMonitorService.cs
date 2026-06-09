@@ -505,14 +505,19 @@ public class YoutubeMonitorService : BackgroundService
             ? settings.DefaultPostTitleTemplate
             : youtubeChannel.PostTitleTemplate!;
 
+        string title;
         if (!string.IsNullOrWhiteSpace(template))
         {
-            return template
+            title = template
                 .Replace("{ChannelName}", channelName, StringComparison.OrdinalIgnoreCase)
                 .Replace("{VideoTitle}", videoTitle, StringComparison.OrdinalIgnoreCase);
         }
+        else
+        {
+            title = $"[{channelName}] {videoTitle}";
+        }
 
-        return $"[{channelName}] {videoTitle}";
+        return title.Length > 100 ? title[..100] : title;
     }
 
     private static HashSet<string> ParseRecentVideoCacheFromState(FeedPostState state)
