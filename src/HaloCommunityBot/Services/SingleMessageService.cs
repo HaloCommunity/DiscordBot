@@ -62,15 +62,23 @@ public class SingleMessageService
 
         if (existing is null)
         {
-            db.SingleMessageRecords.Add(new SingleMessageRecord
+            try
             {
-                ChannelId = channelId,
-                UserId = userId,
-                MessageId = message.Id,
-                PostedAt = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync();
-            return;
+                db.SingleMessageRecords.Add(new SingleMessageRecord
+                {
+                    ChannelId = channelId,
+                    UserId = userId,
+                    MessageId = message.Id,
+                    PostedAt = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateException)
+            {
+                // Concurrent insert from another handler invocation won the race;
+                // fall through to the delete path below.
+            }
         }
 
         try
