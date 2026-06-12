@@ -25,6 +25,10 @@ public sealed class SingleMessageServiceTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync() => await _provider.DisposeAsync();
 
+    // HandleMessageAsync is not covered here because it requires live SocketMessage/SocketTextChannel
+    // objects from Discord.Net, which are sealed and not easily constructable in unit tests.
+    // Integration/manual testing covers the enforcement flow.
+
     private static IConfiguration BuildConfig(params (ulong channelId, bool scanHistory)[] channels)
     {
         var dict = new Dictionary<string, string?>();
@@ -115,6 +119,34 @@ public sealed class SingleMessageServiceTests : IAsyncDisposable
         var count = await UseDbAsync(db =>
             db.SingleMessageRecords.CountAsync(r => r.ChannelId == channelId));
         Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task DisableChannelAsync_UnregisteredChannel_ReturnsError()
+    {
+        var config = BuildConfig((222UL, false));
+        var scopeFactory = _provider.GetRequiredService<IServiceScopeFactory>();
+        var service = new DiscordBot.Services.SingleMessageService(
+            scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance);
+
+        var result = await service.DisableChannelAsync(999UL);
+
+        Assert.Contains("❌", result, StringComparison.Ordinal);
+        Assert.Contains("not registered", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DisableChannelAsync_NeverEnabled_ReturnsInfoMessage()
+    {
+        const ulong channelId = 888UL;
+        var config = BuildConfig((channelId, false));
+        var scopeFactory = _provider.GetRequiredService<IServiceScopeFactory>();
+        var service = new DiscordBot.Services.SingleMessageService(
+            scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance);
+
+        var result = await service.DisableChannelAsync(channelId);
+
+        Assert.Contains("ℹ️", result, StringComparison.Ordinal);
     }
 
     [Fact]
