@@ -12,6 +12,8 @@ public class HaloCommunityBotContext : DbContext
     public DbSet<FeedPostState> FeedPostStates => Set<FeedPostState>();
     public DbSet<YoutubeMonitorSettings> YoutubeMonitorSettings => Set<YoutubeMonitorSettings>();
     public DbSet<YoutubeTrackedChannel> YoutubeTrackedChannels => Set<YoutubeTrackedChannel>();
+    public DbSet<SingleMessageChannelState> SingleMessageChannelStates => Set<SingleMessageChannelState>();
+    public DbSet<SingleMessageRecord> SingleMessageRecords => Set<SingleMessageRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -46,6 +48,25 @@ public class HaloCommunityBotContext : DbContext
             entity.Property(x => x.IsEnabled).HasDefaultValue(true);
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<SingleMessageChannelState>(entity =>
+        {
+            entity.HasKey(x => x.ChannelId);
+            entity.Property(x => x.IsEnabled).HasDefaultValue(false);
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<SingleMessageRecord>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ChannelId, x.UserId }).IsUnique();
+            entity.HasOne(x => x.Channel)
+                .WithMany()
+                .HasForeignKey(x => x.ChannelId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(x => x.PostedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 }
