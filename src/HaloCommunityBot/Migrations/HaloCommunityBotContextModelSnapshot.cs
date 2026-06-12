@@ -59,7 +59,7 @@ namespace HaloCommunityBot.Migrations
             modelBuilder.Entity("DiscordBot.Models.SingleMessageChannelState", b =>
                 {
                     b.Property<ulong>("ChannelId")
-                        .ValueGeneratedOnAdd()
+                        .ValueGeneratedNever()
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")

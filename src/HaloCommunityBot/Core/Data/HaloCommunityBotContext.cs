@@ -53,6 +53,7 @@ public class HaloCommunityBotContext : DbContext
         modelBuilder.Entity<SingleMessageChannelState>(entity =>
         {
             entity.HasKey(x => x.ChannelId);
+            entity.Property(x => x.ChannelId).ValueGeneratedNever();
             entity.Property(x => x.IsEnabled).HasDefaultValue(false);
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
