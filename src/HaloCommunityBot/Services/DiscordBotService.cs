@@ -19,6 +19,7 @@ public class DiscordBotService
     private readonly IServiceProvider _services;
     private readonly BotConfig _config;
     private readonly ILogger<DiscordBotService> _logger;
+    private readonly SingleMessageService _singleMessageService;
     private readonly TaskCompletionSource<bool> _readyCompletionSource = new();
     private int _commandsRegistered;
 
@@ -29,13 +30,15 @@ public class DiscordBotService
         InteractionService interactionService,
         IServiceProvider services,
         BotConfig config,
-        ILogger<DiscordBotService> logger)
+        ILogger<DiscordBotService> logger,
+        SingleMessageService singleMessageService)
     {
         _client = client;
         _interactionService = interactionService;
         _services = services;
         _config = config;
         _logger = logger;
+        _singleMessageService = singleMessageService;
 
         // Subscribe to Discord events
         _client.Log += LogAsync;
@@ -44,6 +47,7 @@ public class DiscordBotService
         _client.Disconnected += DisconnectedAsync;
         _client.InteractionCreated += HandleInteractionAsync;
         _client.GuildAvailable += GuildAvailableAsync;
+        _client.MessageReceived += _singleMessageService.HandleMessageAsync;
         
         // Log interaction service events
         _interactionService.Log += LogAsync;

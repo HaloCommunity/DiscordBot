@@ -107,6 +107,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<HaloCommunityBotContext>(options => options.UseSqlite(connectionString));
 
         services.AddSingleton<DiscordBotService>();
+        services.AddSingleton<SingleMessageService>();
         services.AddHttpClient<HeartbeatMonitorService>();
         services.AddHostedService<HaloStatusMonitorService>();
         if (botConfig.YoutubeMonitor.Enabled)
