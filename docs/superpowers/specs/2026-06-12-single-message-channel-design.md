@@ -86,10 +86,11 @@ All commands require `ManageChannels`. All responses are ephemeral.
 
 ### `/singlemessage enable [channel]`
 
-1. Verify the target channel is in config — respond with an error if not.
-2. Upsert `SingleMessageChannelState` with `IsEnabled = true`, updating `UpdatedAt`.
-3. If `ScanHistoryOnEnable = true` for the channel: fetch up to 100 messages of history, insert `SingleMessageRecord` rows for each unique non-bot user not already recorded.
-4. Respond: *"Single-message enforcement enabled for #channel-name."* (include count of users pre-populated from history if scan was performed).
+1. Default `channel` to the current channel if not provided.
+2. Verify the target channel is in config — respond with an error if not.
+3. Upsert `SingleMessageChannelState` with `IsEnabled = true`, updating `UpdatedAt`.
+4. If `ScanHistoryOnEnable = true` for the channel: fetch up to 100 messages of history, insert `SingleMessageRecord` rows for each unique non-bot user not already recorded.
+5. Respond: *"Single-message enforcement enabled for #channel-name."* (include count of users pre-populated from history if scan was performed).
 
 ### `/singlemessage disable [channel]`
 
