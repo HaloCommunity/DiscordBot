@@ -8,15 +8,15 @@
     <Version>1.3.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Discord.Net" Version="Unknown" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="Unknown" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="Unknown" />
-    <PackageReference Include="Serilog" Version="Unknown" />
-    <PackageReference Include="Serilog.Extensions.Hosting" Version="Unknown" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="Unknown" />
-    <PackageReference Include="Serilog.Sinks.File" Version="Unknown" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="Unknown" />
-    <PackageReference Include="prometheus-net" Version="Unknown" />
+    <PackageReference Include="Discord.Net" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="prometheus-net" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
