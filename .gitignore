@@ -484,3 +484,6 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 .azure
+src/HaloCommunityBot/halocommunitybot.db
+src/HaloCommunityBot/halocommunitybot.db-shm
+src/HaloCommunityBot/halocommunitybot.db-wal
