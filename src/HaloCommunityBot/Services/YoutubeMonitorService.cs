@@ -407,7 +407,7 @@ public class YoutubeMonitorService : BackgroundService
                 youtubeChannel.ChannelId,
                 video.PublishedAt.Kind == DateTimeKind.Utc ? video.PublishedAt : video.PublishedAt.ToUniversalTime());
 
-            var postTitle = BuildPostTitle(settings, youtubeChannel, channelName, video.Title);
+            var postTitle = BuildPostTitle(settings, youtubeChannel, channelName, video, _config.YoutubeMonitor.RoleId);
             var mentionPrefix = _config.YoutubeMonitor.RoleId != 0
                 ? $"<@&{_config.YoutubeMonitor.RoleId}>\n"
                 : string.Empty;
@@ -499,7 +499,7 @@ public class YoutubeMonitorService : BackgroundService
         return existingTag;
     }
 
-    private static string BuildPostTitle(YoutubeMonitorSettings settings, YoutubeTrackedChannel youtubeChannel, string channelName, string videoTitle)
+    private static string BuildPostTitle(YoutubeMonitorSettings settings, YoutubeTrackedChannel youtubeChannel, string channelName, YouTubeVideoEntry video, ulong roleId)
     {
         var template = string.IsNullOrWhiteSpace(youtubeChannel.PostTitleTemplate)
             ? settings.DefaultPostTitleTemplate
@@ -508,13 +508,29 @@ public class YoutubeMonitorService : BackgroundService
         string title;
         if (!string.IsNullOrWhiteSpace(template))
         {
+            var publishedAt = video.PublishedAt.Kind == DateTimeKind.Utc ? video.PublishedAt : video.PublishedAt.ToUniversalTime();
+            var unixSeconds = new DateTimeOffset(publishedAt).ToUnixTimeSeconds();
+            var roleMention = roleId != 0 ? $"<@&{roleId}>" : string.Empty;
+
             title = template
+                .Replace("\\r\\n", "\n", StringComparison.Ordinal)
+                .Replace("\\r", "\n", StringComparison.Ordinal)
+                .Replace("\\n", "\n", StringComparison.Ordinal)
                 .Replace("{ChannelName}", channelName, StringComparison.OrdinalIgnoreCase)
-                .Replace("{VideoTitle}", videoTitle, StringComparison.OrdinalIgnoreCase);
+                .Replace("{VideoTitle}", video.Title, StringComparison.OrdinalIgnoreCase)
+                .Replace("{VideoId}", video.VideoId, StringComparison.OrdinalIgnoreCase)
+                .Replace("{VideoUrl}", video.Url, StringComparison.OrdinalIgnoreCase)
+                .Replace("{ChannelId}", youtubeChannel.ChannelId, StringComparison.OrdinalIgnoreCase)
+                .Replace("{PublishedDate}", publishedAt.ToString("yyyy-MM-dd"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{PublishedAtUtc}", publishedAt.ToString("yyyy-MM-dd HH:mm:ss 'UTC'"), StringComparison.OrdinalIgnoreCase)
+                .Replace("{PublishedAtDiscord}", $"<t:{unixSeconds}:f>", StringComparison.OrdinalIgnoreCase)
+                .Replace("{PublishedAtDiscordRelative}", $"<t:{unixSeconds}:R>", StringComparison.OrdinalIgnoreCase)
+                .Replace("{VideoDescription}", video.Description, StringComparison.OrdinalIgnoreCase)
+                .Replace("{RoleMention}", roleMention, StringComparison.OrdinalIgnoreCase);
         }
         else
         {
-            title = $"[{channelName}] {videoTitle}";
+            title = $"[{channelName}] {video.Title}";
         }
 
         return title.Length > 100 ? title[..100] : title;

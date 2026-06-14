@@ -181,8 +181,40 @@ Set `YoutubeMonitor:Enabled` to `true` and configure:
 | `RoleId` | Optional role to mention when a new video is posted (set `0` to disable mentions) |
 | `YouTubeDataApiKey` | Optional YouTube Data API key used to resolve plain channel names to channel IDs |
 | `PollIntervalMinutes` | Feed polling cadence (default: 15) |
-| `DefaultPostTitleTemplate` | Thread title template (supports `{ChannelName}` and `{VideoTitle}`) |
+| `DefaultPostTitleTemplate` | Thread title template; see placeholder table below |
 | `Channels` | Optional startup seed list of YouTube channel IDs, @handles, feed URLs, or channel names (channel names require `YouTubeDataApiKey`) |
+
+#### YouTube Title Template Variables
+
+The following placeholders are available in both `DefaultPostTitleTemplate` and per-channel `PostTitleTemplate` (for tracked channels):
+
+| Variable | Meaning | Example Value |
+| --- | --- | --- |
+| `{ChannelName}` | Display name of the YouTube channel | `Halo Community` |
+| `{ChannelId}` | Tracked channel reference (YouTube channel ID) | `UC1234567890abcdef` |
+| `{VideoTitle}` | Title of the YouTube video | `Halo Infinite Season 6` |
+| `{VideoId}` | YouTube video ID | `dQw4w9WgXcQ` |
+| `{VideoUrl}` | Full YouTube watch URL | `https://www.youtube.com/watch?v=dQw4w9WgXcQ` |
+| `{PublishedDate}` | Video publish date in UTC (`yyyy-MM-dd`) | `2026-06-14` |
+| `{PublishedAtUtc}` | Video publish timestamp in UTC (`yyyy-MM-dd HH:mm:ss UTC`) | `2026-06-14 17:00:00 UTC` |
+| `{PublishedAtDiscord}` | Discord formatted timestamp (`<t:unix:f>`) | `<t:1779227925:f>` |
+| `{PublishedAtDiscordRelative}` | Discord relative timestamp (`<t:unix:R>`) | `<t:1779227925:R>` |
+| `{VideoDescription}` | YouTube video description text | `Season 6 gameplay overview...` |
+| `{RoleMention}` | Mention text for configured monitor role, or empty when unset | `<@&1234567890>` |
+
+Notes:
+
+* Placeholder names are case-insensitive.
+* Unknown placeholders are left as-is.
+* If a template is empty, the monitor falls back to: `[{ChannelName}] {VideoTitle}`.
+* Escaped newlines in templates are supported (`\\n`, `\\r\\n`, `\\r`) and converted to real line breaks at runtime. This is useful for one-line environment variable values.
+* Post titles are truncated to 100 characters (Discord's forum post title limit).
+
+Examples:
+
+* `[{ChannelName}] {VideoTitle}`
+* `{PublishedAtDiscordRelative} | {VideoTitle}`
+* `New upload from {ChannelName}: {VideoTitle}`
 
 ### Single-Message Channels
 

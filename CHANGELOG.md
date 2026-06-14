@@ -5,6 +5,14 @@ All notable changes to HaloCommunityBot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-14
+
+### Added
+
+* Moderation action logging: all mod actions (ban, unban, kick, mute, unmute, warn, clear, purge, lock, unlock, slowmode, single-message deletions) post rich embeds to a configurable forum channel
+* Cross-channel spam detection: detects identical messages across channels within a time window, with moderator ban/dismiss action buttons
+* YouTube title template expanded placeholder set: `{VideoId}`, `{VideoUrl}`, `{ChannelId}`, `{PublishedDate}`, `{PublishedAtUtc}`, `{PublishedAtDiscord}`, `{PublishedAtDiscordRelative}`, `{VideoDescription}`, `{RoleMention}`, and escaped newline support
+
 ## [1.3.0] - 2026-06-14
 
 ### Added

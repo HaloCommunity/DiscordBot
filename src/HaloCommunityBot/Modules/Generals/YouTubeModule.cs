@@ -67,7 +67,7 @@ public class YouTubeModule : InteractionModuleBase<SocketInteractionContext>
     }
 
     [SlashCommand("set-default-template", "Set the default forum post title template")]
-    public async Task SetDefaultTemplateAsync([Summary("template", "Use {ChannelName} and {VideoTitle} placeholders")] string template)
+    public async Task SetDefaultTemplateAsync([Summary("template", "Title template. Supports {ChannelName}, {VideoTitle}, {VideoId}, {VideoUrl}, {ChannelId}, {PublishedDate}")] string template)
     {
         await DeferAsync(ephemeral: true);
 
