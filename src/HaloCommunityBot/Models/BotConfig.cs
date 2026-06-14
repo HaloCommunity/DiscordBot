@@ -10,6 +10,8 @@ public class BotConfig
     public StatusMonitorConfig StatusMonitor { get; set; } = new();
     public YoutubeMonitorConfig YoutubeMonitor { get; set; } = new();
     public HeartbeatConfig Heartbeat { get; set; } = new();
+    public ModerationLogConfig ModerationLog { get; set; } = new();
+    public CrossChannelSpamConfig CrossChannelSpam { get; set; } = new();
 
     /// <summary>
     /// Validates the bot configuration for required values and correct types.
