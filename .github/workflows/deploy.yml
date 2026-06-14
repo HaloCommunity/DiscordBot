@@ -96,16 +96,29 @@ jobs:
 
     - name: Deploy systemd service file
       run: |
-        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/halocommunitybot.service ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/halocommunitybot.service
+        REMOTE_STAGE="/home/${{ env.DEPLOY_USER }}/halocommunitybot-deploy-staging"
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_STAGE}"
+        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/halocommunitybot.service ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_STAGE}/halocommunitybot.service
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo -n mv /tmp/halocommunitybot.service /etc/systemd/system/halocommunitybot.service && sudo -n chown root:root /etc/systemd/system/halocommunitybot.service && sudo -n chmod 644 /etc/systemd/system/halocommunitybot.service && sudo -n systemctl daemon-reload"
+          "test -s ${REMOTE_STAGE}/halocommunitybot.service && \
+           sudo -n tee /etc/systemd/system/halocommunitybot.service < ${REMOTE_STAGE}/halocommunitybot.service > /dev/null && \
+           sudo -n chown root:root /etc/systemd/system/halocommunitybot.service && \
+           sudo -n chmod 644 /etc/systemd/system/halocommunitybot.service && \
+           rm -f ${REMOTE_STAGE}/halocommunitybot.service && \
+           sudo -n systemctl daemon-reload"
 
     - name: Deploy journald retention policy
       run: |
-        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/journald-bot-limits.conf ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/journald-bot-limits.conf
+        REMOTE_STAGE="/home/${{ env.DEPLOY_USER }}/halocommunitybot-deploy-staging"
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_STAGE}"
+        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no .github/deployment/journald-bot-limits.conf ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_STAGE}/journald-bot-limits.conf
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
           "sudo -n mkdir -p /etc/systemd/journald.conf.d && \
-           sudo -n mv /tmp/journald-bot-limits.conf /etc/systemd/journald.conf.d/60-bot-limits.conf && \
+           test -s ${REMOTE_STAGE}/journald-bot-limits.conf && \
+           sudo -n tee /etc/systemd/journald.conf.d/60-bot-limits.conf < ${REMOTE_STAGE}/journald-bot-limits.conf > /dev/null && \
+           sudo -n chown root:root /etc/systemd/journald.conf.d/60-bot-limits.conf && \
+           sudo -n chmod 644 /etc/systemd/journald.conf.d/60-bot-limits.conf && \
+           rm -f ${REMOTE_STAGE}/journald-bot-limits.conf && \
            sudo -n systemctl restart systemd-journald && \
            sudo -n journalctl --rotate && \
            sudo -n journalctl --vacuum-time=14d --vacuum-size=500M"
