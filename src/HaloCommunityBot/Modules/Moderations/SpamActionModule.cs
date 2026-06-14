@@ -41,11 +41,12 @@ public class SpamActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await RespondWithModalAsync<SpamBanModal>($"spam_ban_modal:{userId}:{guildId}");
+        var messageId = (Context.Interaction as SocketMessageComponent)?.Message.Id ?? 0;
+        await RespondWithModalAsync<SpamBanModal>($"spam_ban_modal:{userId}:{guildId}:{messageId}");
     }
 
-    [ModalInteraction("spam_ban_modal:*:*")]
-    public async Task BanModalAsync(string userId, string guildId, SpamBanModal modal)
+    [ModalInteraction("spam_ban_modal:*:*:*")]
+    public async Task BanModalAsync(string userId, string guildId, string messageId, SpamBanModal modal)
     {
         if (Context.User is not SocketGuildUser actor || !actor.GuildPermissions.BanMembers)
         {
@@ -74,7 +75,7 @@ public class SpamActionModule : InteractionModuleBase<SocketInteractionContext>
                 .Build();
 
             await _logService.AppendToThreadAsync((IMessageChannel)Context.Channel, resultEmbed);
-            await DisableButtonsOnOriginalMessageAsync();
+            await DisableButtonsOnOriginalMessageAsync(messageId);
             await FollowupAsync("✅ User banned.", ephemeral: true);
         }
         catch (Exception ex)
@@ -92,11 +93,12 @@ public class SpamActionModule : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
-        await RespondWithModalAsync<SpamDismissModal>($"spam_dismiss_modal:{userId}:{guildId}");
+        var messageId = (Context.Interaction as SocketMessageComponent)?.Message.Id ?? 0;
+        await RespondWithModalAsync<SpamDismissModal>($"spam_dismiss_modal:{userId}:{guildId}:{messageId}");
     }
 
-    [ModalInteraction("spam_dismiss_modal:*:*")]
-    public async Task DismissModalAsync(string userId, string guildId, SpamDismissModal modal)
+    [ModalInteraction("spam_dismiss_modal:*:*:*")]
+    public async Task DismissModalAsync(string userId, string guildId, string messageId, SpamDismissModal modal)
     {
         if (Context.User is not SocketGuildUser actor || !actor.GuildPermissions.ModerateMembers)
         {
@@ -129,7 +131,7 @@ public class SpamActionModule : InteractionModuleBase<SocketInteractionContext>
                 .Build();
 
             await _logService.AppendToThreadAsync((IMessageChannel)Context.Channel, resultEmbed);
-            await DisableButtonsOnOriginalMessageAsync();
+            await DisableButtonsOnOriginalMessageAsync(messageId);
             await FollowupAsync("✅ Alert dismissed and timeout lifted.", ephemeral: true);
         }
         catch (Exception ex)
@@ -138,25 +140,14 @@ public class SpamActionModule : InteractionModuleBase<SocketInteractionContext>
         }
     }
 
-    private async Task DisableButtonsOnOriginalMessageAsync()
+    private async Task DisableButtonsOnOriginalMessageAsync(string messageId)
     {
         try
         {
-            IUserMessage? message = null;
-
-            // Try to get message from SocketMessageComponent (button interaction)
-            if (Context.Interaction is SocketMessageComponent component)
-            {
-                message = component.Message;
-            }
-            // For modal interactions, the message is not directly accessible
-            // This is a limitation of Discord.NET - modals don't preserve the original message reference
-
-            if (message is null)
-                return;
-
-            await message.ModifyAsync(m =>
-                m.Components = new ComponentBuilder().Build());
+            if (!ulong.TryParse(messageId, out var msgId) || msgId == 0) return;
+            var message = await Context.Channel.GetMessageAsync(msgId) as IUserMessage;
+            if (message is null) return;
+            await message.ModifyAsync(m => m.Components = new ComponentBuilder().Build());
         }
         catch (Exception)
         {
