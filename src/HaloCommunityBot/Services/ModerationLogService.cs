@@ -40,7 +40,7 @@ public class ModerationLogService
 
             var threadTitle = user is not null
                 ? $"[{user.Id}] {user.Username}"
-                : $"Unknown User - Spam Detection (ID: unknown)";
+                : $"Unknown User - {ModerationActionType.SpamDetected} (ID: 0)";
 
             var embed = BuildSpamEmbed(user, channels, fingerprint);
             var components = BuildSpamButtons(user?.Id ?? 0, forum.Guild.Id);
