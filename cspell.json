@@ -42,8 +42,10 @@
     "aspnetcore",
     "backgroundservice",
     "botconfig",
+    "buildtransitive",
     "channelid",
     "commandexecuted",
+    "contentfiles",
     "contextcommand",
     "contextservices",
     "Cooldown",
@@ -119,6 +121,7 @@
     "userid",
     "userinfo",
     "usermod",
-    "xml"
+    "xml",
+    "xunit"
   ]
 }
