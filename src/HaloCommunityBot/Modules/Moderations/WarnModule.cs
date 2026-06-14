@@ -5,11 +5,19 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using DiscordBot.Models;
+using DiscordBot.Services;
 
 namespace DiscordBot.Modules.Moderations;
 
 public class WarnModule : InteractionModuleBase<SocketInteractionContext>
 {
+    private readonly ModerationLogService _logService;
+
+    public WarnModule(ModerationLogService logService)
+    {
+        _logService = logService;
+    }
+
     [SlashCommand("warn", "Warn a member")]
     [RequireUserPermission(GuildPermission.KickMembers)]
     [RequireBotPermission(GuildPermission.KickMembers)]
@@ -28,6 +36,9 @@ public class WarnModule : InteractionModuleBase<SocketInteractionContext>
             WarnStorage.Warnings[user.Id] = new List<string>();
 
         WarnStorage.Warnings[user.Id].Add(reason);
+
+        await _logService.LogActionAsync(ModerationLogEntry.Create(
+            ModerationActionType.Warn, user, Context.User, reason));
 
         var warnCount = WarnStorage.Warnings[user.Id].Count;
 

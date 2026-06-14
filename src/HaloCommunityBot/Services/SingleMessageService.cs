@@ -14,6 +14,7 @@ public class SingleMessageService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly DiscordSocketClient _client;
     private readonly ILogger<SingleMessageService> _logger;
+    private readonly ModerationLogService _logService;
     private readonly HashSet<ulong> _registeredChannelIds;
     private readonly Dictionary<ulong, SingleMessageChannelConfig> _channelConfigs;
 
@@ -21,11 +22,13 @@ public class SingleMessageService
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
         DiscordSocketClient client,
-        ILogger<SingleMessageService> logger)
+        ILogger<SingleMessageService> logger,
+        ModerationLogService logService)
     {
         _scopeFactory = scopeFactory;
         _client = client;
         _logger = logger;
+        _logService = logService;
 
         var configs = configuration
             .GetSection("SingleMessage:Channels")
@@ -90,6 +93,14 @@ public class SingleMessageService
             _logger.LogWarning(ex, "Failed to delete duplicate message {MessageId} in channel {ChannelId}", message.Id, channelId);
             return;
         }
+
+        await _logService.LogActionAsync(new ModerationLogEntry(
+            ModerationActionType.SingleMessageEnforced,
+            message.Author,
+            userId,
+            null,
+            $"Duplicate message deleted in <#{channelId}>",
+            DateTimeOffset.UtcNow));
 
         try
         {

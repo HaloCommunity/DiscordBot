@@ -2,11 +2,20 @@
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Models;
+using DiscordBot.Services;
 
 namespace DiscordBot.Modules.Moderations;
 
 public class ClearModule : InteractionModuleBase<SocketInteractionContext>
 {
+    private readonly ModerationLogService _logService;
+
+    public ClearModule(ModerationLogService logService)
+    {
+        _logService = logService;
+    }
+
     [SlashCommand("clear", "Delete messages in the channel")]
     [RequireUserPermission(GuildPermission.ManageMessages)]
     [RequireBotPermission(GuildPermission.ManageMessages)]
@@ -222,6 +231,15 @@ public class ClearModule : InteractionModuleBase<SocketInteractionContext>
             if (failedDeletes > 0)
             {
                 responseMessage += $"\n⚠️ Failed to delete {failedDeletes} messages (may have been deleted or are system messages).";
+            }
+
+            if (successfulDeletes > 0)
+            {
+                await _logService.LogActionAsync(new ModerationLogEntry(
+                    ModerationActionType.ClearMessages,
+                    null, 0, Context.User,
+                    $"{successfulDeletes} messages cleared in <#{Context.Channel.Id}>",
+                    DateTimeOffset.UtcNow));
             }
 
             await FollowupAsync(responseMessage, ephemeral: true);

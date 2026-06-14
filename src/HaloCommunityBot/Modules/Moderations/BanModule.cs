@@ -1,6 +1,8 @@
-﻿using Discord;
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Models;
+using DiscordBot.Services;
 using System;
 using System.Threading.Tasks;
 
@@ -8,6 +10,13 @@ namespace DiscordBot.Modules.Moderations;
 
 public class BanModule : InteractionModuleBase<SocketInteractionContext>
 {
+    private readonly ModerationLogService _logService;
+
+    public BanModule(ModerationLogService logService)
+    {
+        _logService = logService;
+    }
+
     [SlashCommand("ban", "Ban a member from the server")]
     [RequireUserPermission(GuildPermission.BanMembers)]
     [RequireBotPermission(GuildPermission.BanMembers)]
@@ -54,6 +63,9 @@ public class BanModule : InteractionModuleBase<SocketInteractionContext>
 
             // Then ban the user
             await guild.AddBanAsync(user, pruneDays: 0, reason: reason);
+
+            await _logService.LogActionAsync(ModerationLogEntry.Create(
+                ModerationActionType.Ban, user, Context.User, reason));
 
             var response = $"✅ Banned **{user.Username}** (Reason: {reason})";
             if (purgeMessages)

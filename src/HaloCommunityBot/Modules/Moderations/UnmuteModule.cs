@@ -3,11 +3,20 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Models;
+using DiscordBot.Services;
 
 namespace DiscordBot.Modules.Moderations;
 
 public class UnmuteModule : InteractionModuleBase<SocketInteractionContext>
 {
+    private readonly ModerationLogService _logService;
+
+    public UnmuteModule(ModerationLogService logService)
+    {
+        _logService = logService;
+    }
+
     [SlashCommand("unmute", "Remove mute (timeout) from a member")]
     [RequireUserPermission(GuildPermission.ModerateMembers)]
     [RequireBotPermission(GuildPermission.ModerateMembers)]
@@ -23,6 +32,10 @@ public class UnmuteModule : InteractionModuleBase<SocketInteractionContext>
         try
         {
             await user.RemoveTimeOutAsync();
+
+            await _logService.LogActionAsync(ModerationLogEntry.Create(
+                ModerationActionType.Unmute, user, Context.User));
+
             await RespondAsync($"✅ Successfully unmuted **{user.Username}**.");
         }
         catch (Exception ex)

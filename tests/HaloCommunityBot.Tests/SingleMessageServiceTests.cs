@@ -56,7 +56,7 @@ public sealed class SingleMessageServiceTests : IAsyncDisposable
     }
 
     private DiscordBot.Services.SingleMessageService BuildService(IConfiguration config) =>
-        new(_scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance);
+        new(_scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance, null!);
 
     [Fact]
     public async Task EnableChannelAsync_UnregisteredChannel_ReturnsError()
@@ -127,7 +127,7 @@ public sealed class SingleMessageServiceTests : IAsyncDisposable
         var config = BuildConfig((222UL, false));
         var scopeFactory = _provider.GetRequiredService<IServiceScopeFactory>();
         var service = new DiscordBot.Services.SingleMessageService(
-            scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance);
+            scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance, null!);
 
         var result = await service.DisableChannelAsync(999UL);
 
@@ -142,7 +142,7 @@ public sealed class SingleMessageServiceTests : IAsyncDisposable
         var config = BuildConfig((channelId, false));
         var scopeFactory = _provider.GetRequiredService<IServiceScopeFactory>();
         var service = new DiscordBot.Services.SingleMessageService(
-            scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance);
+            scopeFactory, config, null!, NullLogger<DiscordBot.Services.SingleMessageService>.Instance, null!);
 
         var result = await service.DisableChannelAsync(channelId);
 

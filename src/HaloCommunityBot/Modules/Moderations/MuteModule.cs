@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Models;
+using DiscordBot.Services;
 using System;
 using System.Threading.Tasks;
 
@@ -8,6 +10,13 @@ namespace DiscordBot.Modules.Moderations;
 
 public class MuteModule : InteractionModuleBase<SocketInteractionContext>
 {
+    private readonly ModerationLogService _logService;
+
+    public MuteModule(ModerationLogService logService)
+    {
+        _logService = logService;
+    }
+
     [SlashCommand("mute", "Mute (timeout) a member for a certain period of time (minutes)")]
     [RequireUserPermission(GuildPermission.ModerateMembers)]
     [RequireBotPermission(GuildPermission.ModerateMembers)]
@@ -41,6 +50,9 @@ public class MuteModule : InteractionModuleBase<SocketInteractionContext>
             {
                 AuditLogReason = reason ?? "No reason provided"
             });
+
+            await _logService.LogActionAsync(ModerationLogEntry.Create(
+                ModerationActionType.Mute, user, Context.User, reason ?? $"{minutes} minute(s)"));
 
             await RespondAsync(
                 $"✅ Successfully muted {user.Username} for {minutes} minutes. (Reason: {reason ?? "No reason provided"})"

@@ -1,6 +1,8 @@
-﻿using Discord;
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using DiscordBot.Models;
+using DiscordBot.Services;
 using System;
 using System.Threading.Tasks;
 
@@ -8,6 +10,13 @@ namespace DiscordBot.Modules.Moderations;
 
 public class KickModule : InteractionModuleBase<SocketInteractionContext>
 {
+    private readonly ModerationLogService _logService;
+
+    public KickModule(ModerationLogService logService)
+    {
+        _logService = logService;
+    }
+
     [SlashCommand("kick", "Kick a member from the server")]
     [RequireUserPermission(GuildPermission.KickMembers)]   // requires the user calling the command to have kick permissions
     [RequireBotPermission(GuildPermission.KickMembers)]    // requires the bot to have kick permissions
@@ -33,6 +42,10 @@ public class KickModule : InteractionModuleBase<SocketInteractionContext>
         try
         {
             await user.KickAsync(reason ?? "No reason provided");
+
+            await _logService.LogActionAsync(ModerationLogEntry.Create(
+                ModerationActionType.Kick, user, Context.User, reason));
+
             await RespondAsync($"✅ Successfully kicked {user.Username} (Reason: {reason ?? "No reason provided"})");
         }
         catch (Exception ex)
