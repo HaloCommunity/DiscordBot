@@ -142,11 +142,21 @@ public class SpamActionModule : InteractionModuleBase<SocketInteractionContext>
     {
         try
         {
+            IUserMessage? message = null;
+
+            // Try to get message from SocketMessageComponent (button interaction)
             if (Context.Interaction is SocketMessageComponent component)
             {
-                await component.Message.ModifyAsync(m =>
-                    m.Components = new ComponentBuilder().Build());
+                message = component.Message;
             }
+            // For modal interactions, the message is not directly accessible
+            // This is a limitation of Discord.NET - modals don't preserve the original message reference
+
+            if (message is null)
+                return;
+
+            await message.ModifyAsync(m =>
+                m.Components = new ComponentBuilder().Build());
         }
         catch (Exception)
         {
