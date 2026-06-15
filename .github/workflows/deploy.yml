@@ -143,6 +143,11 @@ jobs:
         'HALOCOMMUNITYBOT_Bot__Heartbeat__IntervalSeconds=${{ secrets.HEARTBEAT_INTERVAL_SECONDS || '60' }}' \
         'HALOCOMMUNITYBOT_Bot__Heartbeat__StartupDelaySeconds=${{ secrets.HEARTBEAT_STARTUP_DELAY_SECONDS || '15' }}' \
         'HALOCOMMUNITYBOT_Bot__Heartbeat__TimeoutSeconds=${{ secrets.HEARTBEAT_TIMEOUT_SECONDS || '10' }}' \
+        'HALOCOMMUNITYBOT_ModerationLog__ForumChannelId=${{ secrets.MODERATION_LOG_FORUM_CHANNEL_ID || '0' }}' \
+        'HALOCOMMUNITYBOT_ModerationLog__ModeratorRoleId=${{ secrets.MODERATION_LOG_MODERATOR_ROLE_ID || '0' }}' \
+        'HALOCOMMUNITYBOT_CrossChannelSpam__Enabled=${{ secrets.CROSS_CHANNEL_SPAM_ENABLED || 'false' }}' \
+        'HALOCOMMUNITYBOT_CrossChannelSpam__TimeWindowSeconds=${{ secrets.CROSS_CHANNEL_SPAM_TIME_WINDOW_SECONDS || '30' }}' \
+        'HALOCOMMUNITYBOT_CrossChannelSpam__MinimumChannelCount=${{ secrets.CROSS_CHANNEL_SPAM_MINIMUM_CHANNEL_COUNT || '3' }}' \
         | sudo -n tee ${{ env.DEPLOY_PATH }}/.env > /dev/null
         sudo -n chown ${{ env.RUNTIME_USER }}:${{ env.RUNTIME_USER }} ${{ env.DEPLOY_PATH }}/.env
         sudo -n chmod 600 ${{ env.DEPLOY_PATH }}/.env"
