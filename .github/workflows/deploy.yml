@@ -148,6 +148,8 @@ jobs:
         'HALOCOMMUNITYBOT_CrossChannelSpam__Enabled=${{ secrets.CROSS_CHANNEL_SPAM_ENABLED || 'false' }}' \
         'HALOCOMMUNITYBOT_CrossChannelSpam__TimeWindowSeconds=${{ secrets.CROSS_CHANNEL_SPAM_TIME_WINDOW_SECONDS || '30' }}' \
         'HALOCOMMUNITYBOT_CrossChannelSpam__MinimumChannelCount=${{ secrets.CROSS_CHANNEL_SPAM_MINIMUM_CHANNEL_COUNT || '3' }}' \
+          'HALOCOMMUNITYBOT_CrossChannelSpam__DeleteMessages=${{ secrets.CROSS_CHANNEL_SPAM_DELETE_MESSAGES || 'true' }}' \
+          'HALOCOMMUNITYBOT_CrossChannelSpam__TimeoutOnDetection=${{ secrets.CROSS_CHANNEL_SPAM_TIMEOUT_ON_DETECTION || 'true' }}' \
         'HALOCOMMUNITYBOT_ModerationExemptions__ExemptUserIds__0=${{ secrets.MODERATION_EXEMPT_USER_ID_0 || '' }}' \
         'HALOCOMMUNITYBOT_ModerationExemptions__ExemptRoleIds__0=${{ secrets.MODERATION_EXEMPT_ROLE_ID_0 || '' }}' \
         'HALOCOMMUNITYBOT_CommandAccess__DisableAllFunCommands=${{ secrets.COMMAND_ACCESS_DISABLE_ALL_FUN_COMMANDS || 'false' }}' \
