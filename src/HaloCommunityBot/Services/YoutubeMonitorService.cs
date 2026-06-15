@@ -413,6 +413,8 @@ public class YoutubeMonitorService : BackgroundService
                 : string.Empty;
             var body = $"{mentionPrefix}New video from **{channelName}**\n{video.Url}";
 
+            _logger.LogInformation("Posting YouTube video {VideoId} with title ({TitleLength} chars): {PostTitle}", video.VideoId, postTitle.Length, postTitle);
+
             try
             {
                 await forumChannel.CreatePostAsync(postTitle, text: body, tags: new ForumTag[] { resolvedForumTag });
@@ -533,7 +535,15 @@ public class YoutubeMonitorService : BackgroundService
             title = $"[{channelName}] {video.Title}";
         }
 
-        return title.Length > 100 ? title[..100] : title;
+        if (title.Length > 100)
+        {
+            title = title[..100];
+            // Avoid splitting a surrogate pair at the cut point
+            if (char.IsHighSurrogate(title[^1]))
+                title = title[..^1];
+        }
+
+        return string.IsNullOrWhiteSpace(title) ? $"[{channelName}] {video.VideoId}" : title;
     }
 
     private static HashSet<string> ParseRecentVideoCacheFromState(FeedPostState state)

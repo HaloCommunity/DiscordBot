@@ -5,6 +5,14 @@ All notable changes to HaloCommunityBot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-06-15
+
+### Fixed
+
+* YouTube forum post title now guards against orphaned surrogate pairs at the 100-character truncation boundary
+* YouTube forum post title falls back to `[{ChannelName}] {VideoId}` if template substitution produces an empty or whitespace-only result
+* Log the resolved post title (with length) at Info level before posting, to aid diagnosis of future `BASE_TYPE_BAD_LENGTH` rejections
+
 ## [1.4.0] - 2026-06-14
 
 ### Added
