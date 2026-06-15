@@ -148,6 +148,8 @@ jobs:
         'HALOCOMMUNITYBOT_CrossChannelSpam__Enabled=${{ secrets.CROSS_CHANNEL_SPAM_ENABLED || 'false' }}' \
         'HALOCOMMUNITYBOT_CrossChannelSpam__TimeWindowSeconds=${{ secrets.CROSS_CHANNEL_SPAM_TIME_WINDOW_SECONDS || '30' }}' \
         'HALOCOMMUNITYBOT_CrossChannelSpam__MinimumChannelCount=${{ secrets.CROSS_CHANNEL_SPAM_MINIMUM_CHANNEL_COUNT || '3' }}' \
+        'HALOCOMMUNITYBOT_ModerationExemptions__ExemptUserIds__0=${{ secrets.MODERATION_EXEMPT_USER_ID_0 || '' }}' \
+        'HALOCOMMUNITYBOT_ModerationExemptions__ExemptRoleIds__0=${{ secrets.MODERATION_EXEMPT_ROLE_ID_0 || '' }}' \
         | sudo -n tee ${{ env.DEPLOY_PATH }}/.env > /dev/null
         sudo -n chown ${{ env.RUNTIME_USER }}:${{ env.RUNTIME_USER }} ${{ env.DEPLOY_PATH }}/.env
         sudo -n chmod 600 ${{ env.DEPLOY_PATH }}/.env"

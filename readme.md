@@ -105,8 +105,6 @@ These commands require the **Manage Channels** permission.
 | `/singlemessage reset-user <user> [channel]` | Remove a user's record so they may post again |
 | `/singlemessage list [channel]` | List all users who have posted in the channel, with links to their messages |
 
-Channels must be pre-registered in `SingleMessage:Channels` config before enforcement can be enabled via slash command.
-
 ## ⚙️ Configuration
 
 All settings live under the `Bot` key in `appsettings.json`:
@@ -329,6 +327,43 @@ HALOCOMMUNITYBOT_ModerationLog__ModeratorRoleId=1234567890
 HALOCOMMUNITYBOT_CrossChannelSpam__Enabled=false
 HALOCOMMUNITYBOT_CrossChannelSpam__TimeWindowSeconds=30
 HALOCOMMUNITYBOT_CrossChannelSpam__MinimumChannelCount=3
+```
+
+#### Moderation Exemptions Configuration
+
+```bash
+# Linux/Mac
+export HALOCOMMUNITYBOT_ModerationExemptions__ExemptUserIds__0=1234567890
+export HALOCOMMUNITYBOT_ModerationExemptions__ExemptRoleIds__0=1234567890
+
+# Windows PowerShell
+$env:HALOCOMMUNITYBOT_ModerationExemptions__ExemptUserIds__0="1234567890"
+$env:HALOCOMMUNITYBOT_ModerationExemptions__ExemptRoleIds__0="1234567890"
+
+# Windows CMD
+set HALOCOMMUNITYBOT_ModerationExemptions__ExemptUserIds__0=1234567890
+set HALOCOMMUNITYBOT_ModerationExemptions__ExemptRoleIds__0=1234567890
+```
+
+#### Command Access Configuration
+
+```bash
+# Disable all fun commands (meme, 8ball, roll, joke, say)
+HALOCOMMUNITYBOT_CommandAccess__DisableAllFunCommands=true
+
+# Disable specific commands globally
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__0=about
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__1=avatar
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__2=help
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__3=ping
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__4=remind
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__5=serverinfo
+HALOCOMMUNITYBOT_CommandAccess__DisabledCommands__6=userinfo
+
+# Restrict commands to allowed channel IDs
+HALOCOMMUNITYBOT_CommandAccess__RestrictedChannels__about__0=1234567890
+HALOCOMMUNITYBOT_CommandAccess__RestrictedChannels__help__0=1234567890
+HALOCOMMUNITYBOT_CommandAccess__RestrictedChannels__help__1=2345678901
 ```
 
 Example list binding for allowed fun channels:
