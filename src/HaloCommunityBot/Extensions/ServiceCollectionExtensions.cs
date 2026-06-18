@@ -134,7 +134,9 @@ public static class ServiceCollectionExtensions
         }
         services.AddHostedService<HeartbeatMonitorService>();
         services.AddHostedService<MetricsHostedService>();
+        services.AddHostedService<SingleMessageHistoryBackfillHostedService>();
 
         return services;
     }
 }
+
