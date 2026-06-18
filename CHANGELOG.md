@@ -5,6 +5,12 @@ All notable changes to HaloCommunityBot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.12] - 2026-06-18
+
+### Changed
+
+* Show username and user ID in /singlemessage list output
+
 ## [1.4.11] - 2026-06-18
 
 ### Changed
