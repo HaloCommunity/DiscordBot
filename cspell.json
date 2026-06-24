@@ -87,6 +87,7 @@
     "logerror",
     "logginformation",
     "logwarning",
+    "Lookback",
     "mdlint",
     "middleware",
     "moderations",
