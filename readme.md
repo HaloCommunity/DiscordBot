@@ -410,6 +410,11 @@ If you deploy with `.github/workflows/deploy.yml`, configure these repository se
 | `HEARTBEAT_TIMEOUT_SECONDS` | `HALOCOMMUNITYBOT_Bot__Heartbeat__TimeoutSeconds` |
 | `MODERATION_LOG_FORUM_CHANNEL_ID` | `HALOCOMMUNITYBOT_ModerationLog__ForumChannelId` |
 | `MODERATION_LOG_MODERATOR_ROLE_ID` | `HALOCOMMUNITYBOT_ModerationLog__ModeratorRoleId` |
+| `MODERATION_LOG_EVENT_AUDIT_ENABLED` | `HALOCOMMUNITYBOT_ModerationLog__EventAuditEnabled` |
+| `MODERATION_LOG_EVENT_AUDIT_CHANNEL_ID` | `HALOCOMMUNITYBOT_ModerationLog__EventAuditChannelId` |
+| `MODERATION_LOG_EVENT_AUDIT_LOG_MESSAGE_DELETES` | `HALOCOMMUNITYBOT_ModerationLog__LogMessageDeletes` |
+| `MODERATION_LOG_EVENT_AUDIT_LOG_MEMBER_LEAVES` | `HALOCOMMUNITYBOT_ModerationLog__LogMemberLeaves` |
+| `MODERATION_LOG_AUDIT_LOG_LOOKBACK_SECONDS` | `HALOCOMMUNITYBOT_ModerationLog__AuditLogLookbackSeconds` |
 | `CROSS_CHANNEL_SPAM_ENABLED` | `HALOCOMMUNITYBOT_CrossChannelSpam__Enabled` |
 | `CROSS_CHANNEL_SPAM_TIME_WINDOW_SECONDS` | `HALOCOMMUNITYBOT_CrossChannelSpam__TimeWindowSeconds` |
 | `CROSS_CHANNEL_SPAM_MINIMUM_CHANNEL_COUNT` | `HALOCOMMUNITYBOT_CrossChannelSpam__MinimumChannelCount` |
