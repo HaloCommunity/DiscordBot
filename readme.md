@@ -414,6 +414,9 @@ If you deploy with `.github/workflows/deploy.yml`, configure these repository se
 | `MODERATION_LOG_EVENT_AUDIT_CHANNEL_ID` | `HALOCOMMUNITYBOT_ModerationLog__EventAuditChannelId` |
 | `MODERATION_LOG_EVENT_AUDIT_LOG_MESSAGE_DELETES` | `HALOCOMMUNITYBOT_ModerationLog__LogMessageDeletes` |
 | `MODERATION_LOG_EVENT_AUDIT_LOG_MEMBER_LEAVES` | `HALOCOMMUNITYBOT_ModerationLog__LogMemberLeaves` |
+| `MODERATION_LOG_EVENT_AUDIT_LOG_MEMBER_JOINS` | `HALOCOMMUNITYBOT_ModerationLog__LogMemberJoins` |
+| `MODERATION_LOG_IGNORED_USER_ID_0` | `HALOCOMMUNITYBOT_ModerationLog__IgnoredUserIds__0` |
+| `MODERATION_LOG_IGNORED_USER_ID_1` | `HALOCOMMUNITYBOT_ModerationLog__IgnoredUserIds__1` |
 | `MODERATION_LOG_AUDIT_LOG_LOOKBACK_SECONDS` | `HALOCOMMUNITYBOT_ModerationLog__AuditLogLookbackSeconds` |
 | `CROSS_CHANNEL_SPAM_ENABLED` | `HALOCOMMUNITYBOT_CrossChannelSpam__Enabled` |
 | `CROSS_CHANNEL_SPAM_TIME_WINDOW_SECONDS` | `HALOCOMMUNITYBOT_CrossChannelSpam__TimeWindowSeconds` |
