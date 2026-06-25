@@ -20,6 +20,7 @@ public sealed class CrossChannelSpamDetector : IDisposable
     private readonly object _lock = new();
     private readonly Timer _cleanupTimer;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<List<SpamCandidate>>> _pendingLiveTests = new();
+    private readonly ConcurrentDictionary<ulong, DateTimeOffset> _confirmedSpammers = new();
 
     public CrossChannelSpamDetector(
         DiscordSocketClient client,
@@ -68,6 +69,24 @@ public sealed class CrossChannelSpamDetector : IDisposable
             return;
         }
 
+        if (!isSelfTest &&
+            _confirmedSpammers.TryGetValue(message.Author.Id, out var confirmedAt) &&
+            DateTimeOffset.UtcNow - confirmedAt < TimeSpan.FromSeconds(60))
+        {
+            if (_config.DeleteMessages)
+            {
+                try
+                {
+                    await message.DeleteAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Spam: could not delete follow-on message {MessageId} from confirmed spammer {UserId}", message.Id, message.Author.Id);
+                }
+            }
+            return;
+        }
+
         var fingerprint = ComputeFingerprint(
             message.Content ?? string.Empty,
             message.Attachments.Select(AttachmentInfo.FromDiscord));
@@ -104,6 +123,7 @@ public sealed class CrossChannelSpamDetector : IDisposable
                 return;
             }
 
+            _confirmedSpammers[message.Author.Id] = DateTimeOffset.UtcNow;
             await EnforceAsync(message, channel, burst);
         }
     }
@@ -391,6 +411,13 @@ public sealed class CrossChannelSpamDetector : IDisposable
                 if (list.Count == 0)
                     _candidates.TryRemove(key, out _);
             }
+        }
+
+        var spammerExpiry = now.AddSeconds(-60);
+        foreach (var key in _confirmedSpammers.Keys.ToArray())
+        {
+            if (_confirmedSpammers.TryGetValue(key, out var confirmedAt) && confirmedAt < spammerExpiry)
+                _confirmedSpammers.TryRemove(key, out _);
         }
     }
 
