@@ -217,6 +217,25 @@ public sealed class CrossChannelSpamDetector : IDisposable
         var guild = triggeringChannel.Guild;
         var userId = triggeringMessage.Author.Id;
 
+        // Download image before deleting — CDN URLs become inaccessible once the message is gone
+        byte[]? imageBytes = null;
+        string? imageFilename = null;
+        var imageAttachment = triggeringMessage.Attachments
+            .FirstOrDefault(a => (a.ContentType ?? string.Empty).StartsWith("image/", StringComparison.OrdinalIgnoreCase));
+        if (imageAttachment is not null)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                imageBytes = await httpClient.GetByteArrayAsync(imageAttachment.Url);
+                imageFilename = imageAttachment.Filename;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Spam: failed to download image attachment from {Url}", imageAttachment.Url);
+            }
+        }
+
         var deleted = new List<(ulong ChannelId, ulong MessageId)>();
         if (_config.DeleteMessages)
         {
@@ -275,11 +294,7 @@ public sealed class CrossChannelSpamDetector : IDisposable
             .Distinct()
             .ToList();
 
-        var imageUrl = triggeringMessage.Attachments
-            .FirstOrDefault(a => (a.ContentType ?? string.Empty).StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-            ?.Url;
-
-        await _logService.LogSpamDetectedAsync(triggeringMessage.Author, channels, burst[0].Fingerprint, deleted, imageUrl);
+        await _logService.LogSpamDetectedAsync(triggeringMessage.Author, channels, burst[0].Fingerprint, deleted, imageBytes, imageFilename);
     }
 
     public static string ComputeFingerprint(string content, IEnumerable<AttachmentInfo> attachments)
