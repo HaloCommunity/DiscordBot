@@ -5,6 +5,12 @@ All notable changes to HaloCommunityBot will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-06-30
+
+### Fixed
+
+* Link member name to Discord profile in join audit embed
+
 ## [1.5.1] - 2026-06-26
 
 ### Fixed
