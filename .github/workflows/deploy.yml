@@ -181,7 +181,7 @@ jobs:
     - name: Start bot service
       run: |
         ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-          "sudo -n systemctl start halocommunitybot.service"
+          "sudo -n systemctl enable --now halocommunitybot.service"
     
     - name: Check service status
       run: |
