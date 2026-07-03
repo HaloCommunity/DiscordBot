@@ -1,6 +1,9 @@
 using Discord;
 using Discord.WebSocket;
+using DiscordBot.Core.Data;
 using DiscordBot.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 
@@ -11,15 +14,18 @@ public class ModerationLogService
     private readonly DiscordSocketClient? _client;
     private readonly ModerationLogConfig _config;
     private readonly ILogger<ModerationLogService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public ModerationLogService(
         DiscordSocketClient? client,
         ModerationLogConfig config,
-        ILogger<ModerationLogService> logger)
+        ILogger<ModerationLogService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _client = client;
         _config = config;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task LogSpamDetectedAsync(
@@ -41,28 +47,60 @@ public class ModerationLogService
                 return;
             }
 
+            var embed = BuildSpamEmbed(user, channels, fingerprint, imageFilename);
+            var components = BuildSpamButtons(user?.Id ?? 0, forum.Guild.Id);
+
+            var thread = user is not null ? await ResolveThreadAsync(forum, user, user.Id) : null;
+
+            if (thread is not null)
+            {
+                await PostIntoThreadAsync(thread, embed, components, imageBytes, imageFilename);
+                return;
+            }
+
             var threadTitle = user is not null
                 ? $"[{user.Id}] {user.Username}"
                 : $"Unknown User - {ModerationActionType.SpamDetected} (ID: 0)";
 
-            var embed = BuildSpamEmbed(user, channels, fingerprint, imageFilename);
-            var components = BuildSpamButtons(user?.Id ?? 0, forum.Guild.Id);
+            var created = await CreateForumPostAsync(forum, threadTitle, embed, components, imageBytes, imageFilename);
 
-            if (imageBytes is not null && imageFilename is not null)
+            if (user is not null)
             {
-                await using var stream = new MemoryStream(imageBytes, writable: false);
-                var attachment = new FileAttachment(stream, imageFilename);
-                await forum.CreatePostWithFilesAsync(threadTitle, [attachment], embed: embed, components: components);
-            }
-            else
-            {
-                await forum.CreatePostAsync(threadTitle, embed: embed, components: components);
+                await SaveThreadLinkAsync(forum.Guild.Id, user.Id, created.Id, titleConfirmed: true);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ModerationLog: failed to create spam detection thread");
         }
+    }
+
+    private static async Task PostIntoThreadAsync(
+        IThreadChannel thread, Embed embed, MessageComponent? components, byte[]? imageBytes, string? imageFilename)
+    {
+        if (imageBytes is not null && imageFilename is not null)
+        {
+            await using var stream = new MemoryStream(imageBytes, writable: false);
+            var attachment = new FileAttachment(stream, imageFilename);
+            await thread.SendFileAsync(attachment, embed: embed, components: components);
+        }
+        else
+        {
+            await thread.SendMessageAsync(embed: embed, components: components);
+        }
+    }
+
+    private static async Task<IThreadChannel> CreateForumPostAsync(
+        IForumChannel forum, string title, Embed embed, MessageComponent? components, byte[]? imageBytes, string? imageFilename)
+    {
+        if (imageBytes is not null && imageFilename is not null)
+        {
+            await using var stream = new MemoryStream(imageBytes, writable: false);
+            var attachment = new FileAttachment(stream, imageFilename);
+            return await forum.CreatePostWithFilesAsync(title, [attachment], embed: embed, components: components);
+        }
+
+        return await forum.CreatePostAsync(title, embed: embed, components: components);
     }
 
     public async Task LogActionAsync(ModerationLogEntry entry)
@@ -78,10 +116,25 @@ public class ModerationLogService
                 return;
             }
 
-            var threadTitle = BuildThreadTitle(entry);
             var embed = BuildActionEmbed(entry);
 
-            await forum.CreatePostAsync(threadTitle, embed: embed);
+            var thread = entry.Target is not null
+                ? await ResolveThreadAsync(forum, entry.Target, entry.TargetId)
+                : null;
+
+            if (thread is not null)
+            {
+                await thread.SendMessageAsync(embed: embed);
+                return;
+            }
+
+            var threadTitle = BuildThreadTitle(entry);
+            var created = await forum.CreatePostAsync(threadTitle, embed: embed);
+
+            if (entry.Target is not null)
+            {
+                await SaveThreadLinkAsync(forum.Guild.Id, entry.TargetId, created.Id, titleConfirmed: true);
+            }
         }
         catch (Exception ex)
         {
@@ -101,6 +154,104 @@ public class ModerationLogService
         {
             _logger.LogError(ex, "ModerationLog: failed to append to thread {ThreadId}", thread.Id);
         }
+    }
+
+    private async Task<IThreadChannel?> ResolveThreadAsync(IForumChannel forum, IUser target, ulong targetId)
+    {
+        var guildId = forum.Guild.Id;
+
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<HaloCommunityBotContext>();
+            var link = await db.ModLogThreadLinks
+                .FirstOrDefaultAsync(l => l.GuildId == guildId && l.UserId == targetId);
+
+            if (link is not null)
+            {
+                var existing = await ResolveThreadByIdAsync(link.ThreadId);
+                if (existing is null)
+                {
+                    db.ModLogThreadLinks.Remove(link);
+                    await db.SaveChangesAsync();
+                }
+                else
+                {
+                    if (existing.IsArchived)
+                    {
+                        await existing.ModifyAsync(p => p.Archived = false);
+                    }
+
+                    link.LastUsedAt = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync();
+                    return existing;
+                }
+            }
+        }
+
+        var active = await forum.GetActiveThreadsAsync();
+        var archived = await forum.GetPublicArchivedThreadsAsync(limit: 200);
+        var byId = active.Concat(archived).ToDictionary(t => t.Id);
+        var candidates = byId.Values.Select(t => new ThreadCandidate(t.Id, t.Name, t.CreatedAt));
+
+        var match = FindTitleMatch(candidates, targetId, target.Username);
+        if (match is null)
+        {
+            return null;
+        }
+
+        var thread = byId[match.ThreadId];
+        var confirmed = match.Kind == ThreadMatchKind.ExactId;
+
+        if (!confirmed)
+        {
+            await thread.ModifyAsync(p => p.Name = $"[{targetId}] {target.Username}");
+            await thread.SendMessageAsync(
+                $"🔗 Linking this thread to <@{targetId}> (`{targetId}`) based on a title match — let me know if that's wrong.");
+        }
+
+        if (thread.IsArchived)
+        {
+            await thread.ModifyAsync(p => p.Archived = false);
+        }
+
+        await SaveThreadLinkAsync(guildId, targetId, thread.Id, confirmed);
+        return thread;
+    }
+
+    private async Task<IThreadChannel?> ResolveThreadByIdAsync(ulong threadId)
+    {
+        if (_client is null) return null;
+
+        if (_client.GetChannel(threadId) is IThreadChannel cached)
+        {
+            return cached;
+        }
+
+        try
+        {
+            var rest = await _client.Rest.GetChannelAsync(threadId);
+            return rest as IThreadChannel;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "ModerationLog: failed to resolve thread {Id} via REST", threadId);
+            return null;
+        }
+    }
+
+    private async Task SaveThreadLinkAsync(ulong guildId, ulong userId, ulong threadId, bool titleConfirmed)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HaloCommunityBotContext>();
+        db.ModLogThreadLinks.Add(new ModLogThreadLink
+        {
+            GuildId = guildId,
+            UserId = userId,
+            ThreadId = threadId,
+            TitleConfirmed = titleConfirmed,
+            LastUsedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
     }
 
     private static string BuildThreadTitle(ModerationLogEntry entry)

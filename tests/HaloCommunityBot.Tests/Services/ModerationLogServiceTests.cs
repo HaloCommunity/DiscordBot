@@ -1,6 +1,9 @@
 using Discord;
+using DiscordBot.Core.Data;
 using DiscordBot.Models;
 using DiscordBot.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
 using Xunit;
@@ -9,8 +12,17 @@ namespace HaloCommunityBot.Tests.Services;
 
 public class ModerationLogServiceTests
 {
-    private static ModerationLogService BuildService(ulong forumChannelId = 0) =>
-        new(null!, new ModerationLogConfig { ForumChannelId = forumChannelId }, NullLogger<ModerationLogService>.Instance);
+    private static ModerationLogService BuildService(ulong forumChannelId = 0)
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<HaloCommunityBotContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        var provider = services.BuildServiceProvider();
+        return new ModerationLogService(
+            null!,
+            new ModerationLogConfig { ForumChannelId = forumChannelId },
+            NullLogger<ModerationLogService>.Instance,
+            provider.GetRequiredService<IServiceScopeFactory>());
+    }
 
     [Fact]
     public async Task LogActionAsync_WhenForumChannelIdIsZero_DoesNotThrow()
