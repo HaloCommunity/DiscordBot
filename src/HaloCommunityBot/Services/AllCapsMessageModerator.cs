@@ -78,8 +78,15 @@ public sealed partial class AllCapsMessageModerator
             _logger.LogDebug(ex, "AllCaps: could not DM warning to {UserId}", message.Author.Id);
         }
 
-        await _warningService.AddWarningAsync(
-            channel.Guild.Id, message.Author.Id, "All-caps message", WarningSource.AutoAllCaps, null, guildUser);
+        try
+        {
+            await _warningService.AddWarningAsync(
+                channel.Guild.Id, message.Author.Id, "All-caps message", WarningSource.AutoAllCaps, null, guildUser);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AllCaps: failed to record warning for {UserId} in guild {GuildId}", message.Author.Id, channel.Guild.Id);
+        }
 
         await _logService.LogActionAsync(ModerationLogEntry.CreateAutomated(
             ModerationActionType.AutoWarnAllCaps, message.Author, Truncate(message.Content ?? string.Empty, 1000)));
