@@ -49,12 +49,13 @@ public class ModerationLogServiceTests
     }
 
     [Fact]
-    public async Task LogSpamDetectedAsync_WithImageUrl_DoesNotThrow()
+    public async Task LogSpamDetectedAsync_WithImageBytes_DoesNotThrow()
     {
         var service = BuildService(forumChannelId: 0);
+        var imageBytes = new byte[] { 1, 2, 3, 4 };
 
         var ex = await Record.ExceptionAsync(() =>
-            service.LogSpamDetectedAsync(null!, [], "text|", [], "https://cdn.discordapp.com/attachments/1/2/spam.png"));
+            service.LogSpamDetectedAsync(null!, [], "text|", [], imageBytes, "spam.png"));
         Assert.Null(ex);
     }
 }
