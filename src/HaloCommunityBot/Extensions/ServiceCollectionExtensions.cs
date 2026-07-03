@@ -137,6 +137,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ModerationLogService>();
         services.AddSingleton<WarningService>();
         services.AddSingleton<CrossChannelSpamDetector>();
+        services.AddSingleton<AllCapsMessageModerator>();
         services.AddSingleton<DiscordBot.Modules.Moderations.MoveMessagesModule>();
         services.AddSingleton<EventAuditLogService>();
         services.AddHttpClient<HeartbeatMonitorService>();
