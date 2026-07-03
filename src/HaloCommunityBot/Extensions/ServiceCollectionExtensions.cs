@@ -132,6 +132,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ModerationExemptionService>();
         services.AddSingleton<SingleMessageService>();
         services.AddSingleton<ModerationLogService>();
+        services.AddSingleton<WarningService>();
         services.AddSingleton<CrossChannelSpamDetector>();
         services.AddSingleton<DiscordBot.Modules.Moderations.MoveMessagesModule>();
         services.AddSingleton<EventAuditLogService>();
