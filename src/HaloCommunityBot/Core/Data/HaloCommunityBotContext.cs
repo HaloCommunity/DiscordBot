@@ -15,6 +15,7 @@ public class HaloCommunityBotContext : DbContext
     public DbSet<SingleMessageChannelState> SingleMessageChannelStates => Set<SingleMessageChannelState>();
     public DbSet<SingleMessageRecord> SingleMessageRecords => Set<SingleMessageRecord>();
     public DbSet<UserWarning> UserWarnings => Set<UserWarning>();
+    public DbSet<ModLogThreadLink> ModLogThreadLinks => Set<ModLogThreadLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -77,6 +78,13 @@ public class HaloCommunityBotContext : DbContext
             entity.HasIndex(x => new { x.GuildId, x.UserId });
             entity.Property(x => x.Reason).IsRequired();
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<ModLogThreadLink>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.GuildId, x.UserId }).IsUnique();
+            entity.Property(x => x.LastUsedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 }
