@@ -2,6 +2,7 @@ using Discord;
 using Discord.WebSocket;
 using DiscordBot.Models;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace DiscordBot.Services;
 
@@ -110,6 +111,30 @@ public class ModerationLogService
         return $"Unknown User - {entry.ActionType} (ID: {entry.TargetId})";
     }
 
+    public static ThreadMatch? FindTitleMatch(IEnumerable<ThreadCandidate> threads, ulong userId, string username)
+    {
+        var list = threads as IReadOnlyList<ThreadCandidate> ?? threads.ToList();
+        var idTag = $"[{userId}]";
+
+        var idMatches = list.Where(t => t.Name.Contains(idTag, StringComparison.Ordinal)).ToList();
+        if (idMatches.Count > 0)
+        {
+            return new ThreadMatch(idMatches[0].ThreadId, ThreadMatchKind.ExactId);
+        }
+
+        var fuzzyMatches = list
+            .Where(t => t.Name.Contains(username, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (fuzzyMatches.Count == 0)
+        {
+            return null;
+        }
+
+        var best = fuzzyMatches.OrderByDescending(t => t.CreatedAt).First();
+        return new ThreadMatch(best.ThreadId, ThreadMatchKind.FuzzyUsername);
+    }
+
     private Embed BuildSpamEmbed(
         IUser? user,
         IReadOnlyList<ITextChannel> channels,
@@ -208,3 +233,13 @@ public class ModerationLogService
         return null;
     }
 }
+
+public readonly record struct ThreadCandidate(ulong ThreadId, string Name, DateTimeOffset CreatedAt);
+
+public enum ThreadMatchKind
+{
+    ExactId,
+    FuzzyUsername
+}
+
+public record ThreadMatch(ulong ThreadId, ThreadMatchKind Kind);

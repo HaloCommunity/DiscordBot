@@ -2,6 +2,7 @@ using Discord;
 using DiscordBot.Models;
 using DiscordBot.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Linq;
 using Xunit;
 
 namespace HaloCommunityBot.Tests.Services;
@@ -57,5 +58,106 @@ public class ModerationLogServiceTests
         var ex = await Record.ExceptionAsync(() =>
             service.LogSpamDetectedAsync(null!, [], "text|", [], imageBytes, "spam.png"));
         Assert.Null(ex);
+    }
+
+    [Fact]
+    public void FindTitleMatch_ExactIdTag_ReturnsExactIdMatch()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(1UL, "Some Other Title", DateTimeOffset.UtcNow),
+            new ThreadCandidate(2UL, "[123456] SomeUser", DateTimeOffset.UtcNow)
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 123456UL, "SomeUser");
+
+        Assert.NotNull(match);
+        Assert.Equal(2UL, match!.ThreadId);
+        Assert.Equal(ThreadMatchKind.ExactId, match.Kind);
+    }
+
+    [Fact]
+    public void FindTitleMatch_ExactIdTag_PreferredOverFuzzyUsernameMatch()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(1UL, "banned SomeUser again", DateTimeOffset.UtcNow),
+            new ThreadCandidate(2UL, "[123456] SomeUser", DateTimeOffset.UtcNow.AddDays(-1))
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 123456UL, "SomeUser");
+
+        Assert.Equal(2UL, match!.ThreadId);
+        Assert.Equal(ThreadMatchKind.ExactId, match.Kind);
+    }
+
+    [Fact]
+    public void FindTitleMatch_RawIdWithoutBrackets_DoesNotCountAsExactMatch()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(1UL, "User 123456 was banned", DateTimeOffset.UtcNow)
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 123456UL, "NoUsernameOverlapHere");
+
+        Assert.Null(match);
+    }
+
+    [Fact]
+    public void FindTitleMatch_NoMatches_ReturnsNull()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(1UL, "Completely unrelated title", DateTimeOffset.UtcNow)
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 999UL, "SomeUser");
+
+        Assert.Null(match);
+    }
+
+    [Fact]
+    public void FindTitleMatch_SingleFuzzyMatch_ReturnsFuzzyUsernameMatch()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(5UL, "Manual thread for SomeUser", DateTimeOffset.UtcNow)
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 999UL, "SomeUser");
+
+        Assert.NotNull(match);
+        Assert.Equal(5UL, match!.ThreadId);
+        Assert.Equal(ThreadMatchKind.FuzzyUsername, match.Kind);
+    }
+
+    [Fact]
+    public void FindTitleMatch_FuzzyMatchIsCaseInsensitive()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(5UL, "manual thread for SOMEUSER", DateTimeOffset.UtcNow)
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 999UL, "SomeUser");
+
+        Assert.NotNull(match);
+        Assert.Equal(ThreadMatchKind.FuzzyUsername, match!.Kind);
+    }
+
+    [Fact]
+    public void FindTitleMatch_MultipleFuzzyMatches_PicksMostRecentlyCreated()
+    {
+        var threads = new[]
+        {
+            new ThreadCandidate(1UL, "Old thread SomeUser", DateTimeOffset.UtcNow.AddDays(-10)),
+            new ThreadCandidate(2UL, "Newer thread SomeUser", DateTimeOffset.UtcNow.AddDays(-1)),
+            new ThreadCandidate(3UL, "Oldest thread SomeUser", DateTimeOffset.UtcNow.AddDays(-30))
+        };
+
+        var match = ModerationLogService.FindTitleMatch(threads, 999UL, "SomeUser");
+
+        Assert.Equal(2UL, match!.ThreadId);
     }
 }
