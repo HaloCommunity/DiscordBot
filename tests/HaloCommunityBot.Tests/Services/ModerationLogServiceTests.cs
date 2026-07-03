@@ -172,4 +172,54 @@ public class ModerationLogServiceTests
 
         Assert.Equal(2UL, match!.ThreadId);
     }
+
+    [Fact]
+    public async Task LogActionAsync_AutoWarnAllCaps_WhenForumChannelIdIsZero_DoesNotThrow()
+    {
+        var service = BuildService(forumChannelId: 0);
+        var entry = ModerationLogEntry.CreateAutomated(
+            ModerationActionType.AutoWarnAllCaps,
+            target: new TestUser(555UL, "CapsUser"),
+            reason: "ALL CAPS MESSAGE HERE");
+
+        var ex = await Record.ExceptionAsync(() => service.LogActionAsync(entry));
+        Assert.Null(ex);
+    }
+}
+
+internal sealed class TestUser : IUser
+{
+    public TestUser(ulong id, string username)
+    {
+        Id = id;
+        Username = username;
+    }
+
+    public ulong Id { get; }
+    public string Username { get; }
+    public string? GlobalName => null;
+    public string Discriminator => "0";
+    public ushort DiscriminatorValue => 0;
+    public bool IsBot => false;
+    public bool IsWebhook => false;
+    public string? AvatarId => null;
+    public string? BannerId => null;
+    public Color? AccentColor => null;
+    public UserProperties? PublicFlags => null;
+    public string? AvatarDecorationHash => null;
+    public ulong? AvatarDecorationSkuId => null;
+    public PrimaryGuild? PrimaryGuild => null;
+    public string Mention => $"<@{Id}>";
+    public IActivity? Activity => null;
+    public UserStatus Status => UserStatus.Offline;
+    public IReadOnlyCollection<ClientType> ActiveClients => Array.Empty<ClientType>();
+    public IReadOnlyCollection<IActivity> Activities => Array.Empty<IActivity>();
+    public DateTimeOffset CreatedAt => DateTimeOffset.UtcNow;
+    public string AvatarUrl => string.Empty;
+    public string GetAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128) => string.Empty;
+    public string GetDisplayAvatarUrl(ImageFormat format = ImageFormat.Auto, ushort size = 128) => string.Empty;
+    public string GetDefaultAvatarUrl() => string.Empty;
+    public string? GetBannerUrl(ImageFormat format = ImageFormat.Auto, ushort size = 256) => null;
+    public string? GetAvatarDecorationUrl() => null;
+    public Task<IDMChannel> CreateDMChannelAsync(RequestOptions? options = null) => throw new NotSupportedException();
 }

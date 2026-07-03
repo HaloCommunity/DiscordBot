@@ -327,7 +327,7 @@ public class ModerationLogService
         {
             ModerationActionType.Ban or ModerationActionType.Kick or ModerationActionType.SpamDetected
                 => new Color(0xE74C3C),
-            ModerationActionType.Mute or ModerationActionType.Warn or ModerationActionType.PurgeUser
+            ModerationActionType.Mute or ModerationActionType.Warn or ModerationActionType.AutoWarnAllCaps or ModerationActionType.PurgeUser
                 => new Color(0xF1C40F),
             ModerationActionType.Unmute or ModerationActionType.Unban
                 => new Color(0xE67E22),
