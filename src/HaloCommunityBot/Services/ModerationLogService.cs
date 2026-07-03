@@ -118,7 +118,7 @@ public class ModerationLogService
 
             var embed = BuildActionEmbed(entry);
 
-            var thread = entry.Target is not null
+            var thread = entry.TargetId != 0
                 ? await ResolveThreadAsync(forum, entry.Target, entry.TargetId)
                 : null;
 
@@ -131,7 +131,7 @@ public class ModerationLogService
             var threadTitle = BuildThreadTitle(entry);
             var created = await forum.CreatePostAsync(threadTitle, embed: embed);
 
-            if (entry.Target is not null)
+            if (entry.TargetId != 0)
             {
                 await SaveThreadLinkAsync(forum.Guild.Id, entry.TargetId, created.Id, titleConfirmed: true);
             }
@@ -156,7 +156,7 @@ public class ModerationLogService
         }
     }
 
-    private async Task<IThreadChannel?> ResolveThreadAsync(IForumChannel forum, IUser target, ulong targetId)
+    private async Task<IThreadChannel?> ResolveThreadAsync(IForumChannel forum, IUser? target, ulong targetId)
     {
         var guildId = forum.Guild.Id;
 
@@ -186,6 +186,14 @@ public class ModerationLogService
                     return existing;
                 }
             }
+        }
+
+        if (target is null)
+        {
+            // No live user object to scan titles by username or rename a thread with —
+            // the DB-linked lookup above is the only resolution available for this call.
+            // The caller creates a fresh post (and still persists the link by ID) if this misses.
+            return null;
         }
 
         var active = await forum.GetActiveThreadsAsync();
