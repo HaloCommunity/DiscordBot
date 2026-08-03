@@ -133,6 +133,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DiscordBotService>();
         services.AddSingleton<CommandAccessService>();
         services.AddSingleton<ModerationExemptionService>();
+        services.AddSingleton<AcronymAllowlistService>();
         services.AddSingleton<SingleMessageService>();
         services.AddSingleton<ModerationLogService>();
         services.AddSingleton<WarningService>();

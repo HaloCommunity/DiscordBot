@@ -161,7 +161,10 @@ All settings live under the `Bot` key in `appsettings.json`:
     "Enabled": true,
     "DeleteMessage": true,
     "MinLetters": 8,
-    "MinUppercaseRatio": 0.7,
+    "MinUppercaseRatio": 0.8,
+    "EnableLengthScaling": true,
+    "UppercaseRatioDropPerLetter": 0.01,
+    "MinScaledUppercaseRatio": 0.4,
     "WarningDurationSeconds": 10
   }
 }
@@ -282,8 +285,14 @@ Detects messages that are mostly uppercase, deletes them, warns the author via a
 | `Enabled` | Enable all-caps detection (default: `true`) |
 | `DeleteMessage` | Delete the offending message (requires Manage Messages). Default: `true` |
 | `MinLetters` | Minimum letter count (non-letters excluded) before a message is considered (default: `8`) |
-| `MinUppercaseRatio` | Fraction of letters that must be uppercase to trigger (default: `0.7`) |
+| `MinUppercaseRatio` | Starting uppercase ratio threshold at `MinLetters` (default: `0.8`) |
+| `EnableLengthScaling` | When `true`, required uppercase ratio decreases as message length grows (default: `true`) |
+| `UppercaseRatioDropPerLetter` | Ratio subtracted per letter above `MinLetters` while scaling (default: `0.01`) |
+| `MinScaledUppercaseRatio` | Floor ratio used for very long messages (default: `0.4`) |
 | `WarningDurationSeconds` | How long the self-deleting channel warning stays visible (default: `10`) |
+
+The bot now uses a DB-backed acronym allowlist to exempt known acronyms instead of a blanket short-message exemption. Manage entries with `/acronyms add`, `/acronyms remove`, and `/acronyms list`.
+The default seed includes common English chat acronyms, Welsh/Wales community acronyms, and common IT/technical acronyms.
 
 ### Uptime Heartbeat
 
