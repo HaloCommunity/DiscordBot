@@ -12,6 +12,9 @@ public class HaloCommunityBotContext : DbContext
     public DbSet<FeedPostState> FeedPostStates => Set<FeedPostState>();
     public DbSet<YoutubeMonitorSettings> YoutubeMonitorSettings => Set<YoutubeMonitorSettings>();
     public DbSet<YoutubeTrackedChannel> YoutubeTrackedChannels => Set<YoutubeTrackedChannel>();
+    public DbSet<GitHubMonitorSettings> GitHubMonitorSettings => Set<GitHubMonitorSettings>();
+    public DbSet<GitHubTrackedRepository> GitHubTrackedRepositories => Set<GitHubTrackedRepository>();
+    public DbSet<GitHubWorkflowSubscription> GitHubWorkflowSubscriptions => Set<GitHubWorkflowSubscription>();
     public DbSet<SingleMessageChannelState> SingleMessageChannelStates => Set<SingleMessageChannelState>();
     public DbSet<SingleMessageRecord> SingleMessageRecords => Set<SingleMessageRecord>();
     public DbSet<UserWarning> UserWarnings => Set<UserWarning>();
@@ -50,6 +53,40 @@ public class HaloCommunityBotContext : DbContext
             entity.Property(x => x.IsEnabled).HasDefaultValue(true);
             entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<GitHubMonitorSettings>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Enabled).HasDefaultValue(false);
+            entity.Property(x => x.PollIntervalMinutes).HasDefaultValue(10);
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<GitHubTrackedRepository>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.Owner, x.Name }).IsUnique();
+            entity.Ignore(x => x.FullName);
+            entity.Property(x => x.Owner).IsRequired();
+            entity.Property(x => x.Name).IsRequired();
+            entity.Property(x => x.IssuesEnabled).HasDefaultValue(true);
+            entity.Property(x => x.PullRequestsEnabled).HasDefaultValue(true);
+            entity.Property(x => x.ActionsEnabled).HasDefaultValue(false);
+            entity.Property(x => x.ReleasesEnabled).HasDefaultValue(true);
+            entity.Property(x => x.IsEnabled).HasDefaultValue(true);
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(x => x.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        modelBuilder.Entity<GitHubWorkflowSubscription>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Workflow).IsRequired();
+            entity.HasIndex(x => new { x.RepositoryId, x.Workflow, x.ChannelId }).IsUnique();
+            entity.HasOne<GitHubTrackedRepository>().WithMany()
+                .HasForeignKey(x => x.RepositoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SingleMessageChannelState>(entity =>

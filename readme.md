@@ -8,6 +8,7 @@ Discord bot for the Halo Community server, built with C# (.NET 10) and [Discord.
 * **Moderation tools**: ban, kick, mute, warn, clear, purge, slowmode, lock/unlock
 * **General utilities**: avatar, userinfo, serverinfo, reminders, fun commands, and more
 * **Halo Services status monitor**: polls the [Halo Services Solutions status RSS feed](https://status.haloservicesolutions.com/pages/63ef45da7ee94905308a1a4a/rss) and posts updates to a configured channel
+* **GitHub monitor**: tracks repository activity and individual workflows in configured channels
 * **Single-message channel enforcement**: restricts designated channels to one message per user, with slash commands to enable/disable enforcement and reset individual users
 * **Moderation action logging**: posts a rich embed to a configured forum channel for every moderation action (ban, unban, kick, mute, unmute, warn, clear, purge, lock/unlock, slowmode, and automated single-message deletions)
 * **Cross-channel spam detection**: flags users who post identical messages across multiple channels within a configurable time window, alerting moderators with interactive ban/dismiss buttons
@@ -93,6 +94,29 @@ The bot requires the following permissions (the invite URL should include these)
 | `/slowmode <seconds>` | Manage Channels | Manage Channels |
 
 > **Note:** `/warn` auto-kicks a user after 3 accumulated warnings.
+
+### GitHub Monitor
+
+The GitHub monitor starts disabled and is managed with administrator-only `/github` commands. It polls issues, pull requests, releases and completed GitHub Actions workflow runs, with repository and category channel routing. Configuration and first-poll baselines are stored in SQLite.
+
+| Command | Description |
+| --- | --- |
+| `/github enable <enabled>` | Enable or disable polling |
+| `/github add-repo <repository> [channel]` | Track a repository by `owner/name` or GitHub URL |
+| `/github remove-repo <repository>` | Remove a repository and its workflow subscriptions |
+| `/github add-workflow <repository> <workflow> <channel>` | Monitor a workflow in a specific channel |
+| `/github remove-workflow <repository> <workflow> <channel>` | Remove a workflow subscription |
+| `/github toggle <repository> <category> <enabled> [channel]` | Enable or disable a category and optionally route it |
+| `/github set-category-channel <repository> <category> [channel]` | Set or clear a category channel |
+| `/github set-repo-enabled <repository> <enabled>` | Pause or resume a repository and its workflows |
+| `/github set-default-channel <channel>` | Set the fallback channel |
+| `/github set-role [role]` | Set or clear the notification role |
+| `/github set-interval <minutes>` | Set the polling interval (5–1440 minutes) |
+| `/github list` | Show repository and workflow subscriptions |
+
+For a workflow, use its file name from `.github/workflows` (for example `deploy-next.yml`) or numeric GitHub workflow ID. Add its repository first, disable unwanted categories with `/github toggle`, and enable the monitor. Each workflow/channel subscription establishes a baseline on its first poll, and reports completed workflow runs rather than individual jobs. Subscriptions work even if repository-wide Actions notifications are off; enabling both can produce two notifications. Each subscription adds one API request per poll and reads the 20 most recent runs.
+
+The optional `Bot:GitHubMonitor` configuration seeds the initial enabled state, default channel, role, poll interval and repositories; runtime changes are made with slash commands. `Bot:GitHubMonitor:Token` is used for API requests: unauthenticated requests are limited to 60 per hour; private repositories require appropriate read permissions, including Actions read for workflows.
 
 ### Single-Message Enforcement
 
@@ -440,6 +464,11 @@ If you deploy with `.github/workflows/deploy.yml`, configure these repository se
 | `YOUTUBE_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RoleId` |
 | `YOUTUBE_DATA_API_KEY` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__YouTubeDataApiKey` |
 | `YOUTUBE_POLL_INTERVAL_MINUTES` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__PollIntervalMinutes` |
+| `GITHUB_MONITOR_ENABLED` | `HALOCOMMUNITYBOT_Bot__GitHubMonitor__Enabled` (initial seed only) |
+| `GITHUB_MONITOR_DEFAULT_CHANNEL_ID` | `HALOCOMMUNITYBOT_Bot__GitHubMonitor__DefaultChannelId` (initial seed only) |
+| `GITHUB_MONITOR_ROLE_ID` | `HALOCOMMUNITYBOT_Bot__GitHubMonitor__RoleId` (initial seed only) |
+| `GITHUB_MONITOR_TOKEN` | `HALOCOMMUNITYBOT_Bot__GitHubMonitor__Token` |
+| `GITHUB_MONITOR_POLL_INTERVAL_MINUTES` | `HALOCOMMUNITYBOT_Bot__GitHubMonitor__PollIntervalMinutes` (initial seed only) |
 | `YOUTUBE_RECENT_VIDEO_CACHE_SIZE` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__RecentVideoCacheSize` |
 | `YOUTUBE_DEFAULT_POST_TITLE_TEMPLATE` | `HALOCOMMUNITYBOT_Bot__YoutubeMonitor__DefaultPostTitleTemplate` |
 | `HEARTBEAT_ENABLED` | `HALOCOMMUNITYBOT_Bot__Heartbeat__Enabled` |
