@@ -255,6 +255,7 @@ public class GitHubMonitorService : BackgroundService
                 await channel.SendMessageAsync(
                     text: BuildMention(settings),
                     embed: BuildEmbed(repository, category, item),
+                    components: BuildDeploymentComponents(item.DeploymentUrls),
                     allowedMentions: settings.RoleId == 0 ? AllowedMentions.None : null);
 
                 BotMetrics.GitHubNotificationsPosted.Inc();
@@ -339,6 +340,9 @@ public class GitHubMonitorService : BackgroundService
                     }
 
                     item.DeploymentUrls.Add(url);
+                    if (url.Length > 512)
+                        _logger.LogWarning("Deployment URL for GitHub workflow run {RunId} in {Repository} exceeds Discord's button URL limit; displaying it without a button.",
+                            item.Id, repository.FullName);
                 }
             }
         }
@@ -598,10 +602,30 @@ public class GitHubMonitorService : BackgroundService
         if (!string.IsNullOrWhiteSpace(item.Body))
             builder.WithDescription(Truncate(item.Body, 500));
 
-        foreach (var url in item.DeploymentUrls)
-            builder.AddField("Deployment", $"[View deployment]({url})", true);
+        for (var i = 0; i < item.DeploymentUrls.Count; i++)
+        {
+            var label = item.DeploymentUrls.Count == 1 ? "Deployment" : $"Deployment {i + 1}";
+            builder.AddField(label, item.DeploymentUrls[i], false);
+        }
 
         return builder.Build();
+    }
+
+    private static MessageComponent? BuildDeploymentComponents(IReadOnlyList<string> urls)
+    {
+        var builder = new ComponentBuilder();
+        var buttonCount = 0;
+        for (var i = 0; i < urls.Count; i++)
+        {
+            if (urls[i].Length > 512)
+                continue;
+
+            var label = urls.Count == 1 ? "View deployment" : $"View deployment {i + 1}";
+            builder.WithButton(label, style: ButtonStyle.Link, url: urls[i], row: buttonCount / 5);
+            buttonCount++;
+        }
+
+        return buttonCount == 0 ? null : builder.Build();
     }
 
     private static string GetCategoryLabel(GitHubEventCategory category) => category switch
